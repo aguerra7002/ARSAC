@@ -1,0 +1,20 @@
+{
+  "env_name": "LunarLanderContinuous-v2",
+  "policy": "Gaussian",
+  "eval": true,
+  "gamma": 0.99,
+  "tau": 0.005,
+  "lr": 0.001,
+  "alpha": 0.2,
+  "automatic_entropy_tuning": false,
+  "use_prev_action": true,
+  "seed": 123456,
+  "batch_size": 256,
+  "num_steps": 100000,
+  "hidden_size": 256,
+  "updates_per_step": 1,
+  "start_steps": 3000,
+  "target_update_interval": 1,
+  "replay_size": 3000,
+  "cuda": false
+}
