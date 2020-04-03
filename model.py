@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 
-LOG_SIG_MAX = 2
+LOG_SIG_MAX = 3
 LOG_SIG_MIN = -20
 epsilon = 1e-6
 
@@ -62,7 +62,7 @@ class QNetwork(nn.Module):
 
 
 class GaussianPolicy(nn.Module):
-    def __init__(self, num_inputs, num_actions, hidden_dim, action_space=None, use_prev_action=False):
+    def __init__(self, num_inputs, num_actions, hidden_dim, action_space=None, batch_size=256, action_lookback=0):
         super(GaussianPolicy, self).__init__()
         # Specifying the Theta Network (will map states to some latent space equal in dimension to action space)
         self.linear_theta_1 = nn.Linear(num_inputs, hidden_dim)
@@ -71,15 +71,19 @@ class GaussianPolicy(nn.Module):
         self.mean_linear_theta = nn.Linear(hidden_dim, num_actions)
         self.log_std_linear_theta = nn.Linear(hidden_dim, num_actions)
 
-        self.use_prev_action = use_prev_action
+        self.action_lookback = action_lookback
 
         # Specifying the Phi Network (will adjust the output of the theta network based on previous action)
-
-        self.linear_phi_1 = nn.Linear(num_actions, hidden_dim)
+        # Old stuff
+        print("Gaussian Policy ALB:", self.action_lookback)
+        self.linear_phi_1 = nn.Linear(num_actions * self.action_lookback, hidden_dim)
         self.linear_phi_2 = nn.Linear(hidden_dim, hidden_dim)
+        # To be added on next with rnn implementation:
+        # self.lstm = nn.LSTM(num_actions, hidden_dim, 2, batch_first=False)
+        # self.hidden = (torch.randn(2, batch_size, hidden_dim), torch.randn(2, batch_size, hidden_dim))
 
-        self.mean_linear_phi = nn.Linear(hidden_dim, num_actions)
-        self.log_std_linear_phi = nn.Linear(hidden_dim, num_actions)
+        self.log_scale_linear_phi = nn.Linear(hidden_dim, num_actions)
+        self.shift_linear_phi = nn.Linear(hidden_dim, num_actions)
 
         self.apply(weights_init_)
 
@@ -101,42 +105,55 @@ class GaussianPolicy(nn.Module):
         log_std = self.log_std_linear_theta(x)
         log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX)
         return mean, log_std
-    
-    def forward_phi(self, prev_action):
-        x = F.relu(self.linear_phi_1(prev_action))
-        x = F.relu(self.linear_phi_2(x))
-        bias = self.mean_linear_phi(x)
-        log_scale = self.log_std_linear_phi(x)
-        log_scale = torch.clamp(log_scale, min=LOG_SIG_MIN, max=LOG_SIG_MAX)
-        return bias, log_scale
 
-    def sample(self, state, prev_action):
-        # First pass the state through the Theta network
+    # Randomly initialize hidden/cell states
+    def reset_hidden_state(self, batch_size):
+        self.hidden = (torch.randn(self.hidden[0].shape), torch.randn(self.hidden[1].shape))
+
+    def forward_phi(self, prev_actions):
+        # Old stuff
+        x = F.relu(self.linear_phi_1(prev_actions))
+        x = F.relu(self.linear_phi_2(x))
+
+        # New stuff
+        # Expand to 3 dims
+        # x = nn.View(1, prev_action.shape[0], prev_action.shape[1])(prev_action)
+        # x, self.hidden = self.lstm(prev_action, self.hidden)
+        # Reshape to 2d
+        # x = nn.View(prev_action.shape[0], self.hidden_dim)(x)
+        # Note that x should be of dimension (batch_size, seq_len, hidden_dim)
+        # If prev_action is a sequence of actions then we'd have to squeeze the last value of x to get final prediction.
+
+        # Back to old stuff
+        shift = self.shift_linear_phi(x)
+        shift = torch.clamp(shift, min=-5.0, max=5.0)
+        log_scale = self.log_scale_linear_phi(x)
+        log_scale = torch.clamp(log_scale, min=LOG_SIG_MIN, max=LOG_SIG_MAX) # Ensures that the scale factor is > 0
+        return log_scale, shift
+
+    def sample(self, state, prev_actions):
+        # First pass the state through the state network
         mean, log_std = self.forward_theta(state)
         std = log_std.exp()
-        # TODO: Get rid of the std?, as this will be handled by Phi_network
 
-        if self.use_prev_action:
-            # Pass the prev_action through the Phi network
-            phi_scale, phi_log_shift = self.forward_phi(prev_action)
-            phi_shift = phi_log_shift.exp()
+        if self.action_lookback > 0:
+            # Use the previous action(s) to shift the mean of the prediction.
+            phi_log_scale, phi_shift = self.forward_phi(prev_actions)
             # Now we adjust the mean and std based on the outputs from phi_network
-            mean = torch.mul(mean, phi_scale)
-            # TODO: Should we also adjust the Standard deviation? Not too sure.
-            std = torch.mul(std, phi_shift)
+            mean = mean * phi_log_scale.exp() + phi_shift
 
         normal = Normal(mean, std)
-
         x_t = normal.rsample()  # for reparameterization trick (mean + std * N(0,1))
         y_t = torch.tanh(x_t)
 
-        action = y_t * self.action_scale + self.action_bias
         log_prob = normal.log_prob(x_t)
         # Enforcing Action Bound
         log_prob -= torch.log(self.action_scale * (1 - y_t.pow(2)) + epsilon)
         log_prob = log_prob.sum(1, keepdim=True)
-        # TODO: Also add in Phi parameter updating here.
+
         mean_ret = torch.tanh(mean) * self.action_scale + self.action_bias
+        action = y_t * self.action_scale + self.action_bias
+
         return action, log_prob, mean_ret
 
     def to(self, device):

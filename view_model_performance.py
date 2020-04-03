@@ -6,9 +6,9 @@ import json
 import time
 from arrl import ARRL
 
-ENV_NAME = "" # Put something else here.
-ENV_NAME = "LunarLanderContinuous-v2"
-USE_PREV_ACTION = False
+ENV_NAME = "HalfCheetah-v2"
+#ENV_NAME = "LunarLanderContinuous-v2"
+USE_PREV_ACTION = True
 
 parser = argparse.ArgumentParser(description='PyTorch AutoRegressiveFlows-RL Args')
 args = parser.parse_args()
@@ -28,8 +28,7 @@ for _ in range(1000):
     action = agent.select_action(state, prev_action, eval=True)
     next_state, reward, done, _ = env.step(action)
     if done:
-        #break
-        pass
+        break
     prev_action = action
     state = next_state
 
