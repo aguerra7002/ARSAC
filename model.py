@@ -115,15 +115,6 @@ class GaussianPolicy(nn.Module):
         x = F.relu(self.linear_phi_1(prev_actions))
         x = F.relu(self.linear_phi_2(x))
 
-        # New stuff
-        # Expand to 3 dims
-        # x = nn.View(1, prev_action.shape[0], prev_action.shape[1])(prev_action)
-        # x, self.hidden = self.lstm(prev_action, self.hidden)
-        # Reshape to 2d
-        # x = nn.View(prev_action.shape[0], self.hidden_dim)(x)
-        # Note that x should be of dimension (batch_size, seq_len, hidden_dim)
-        # If prev_action is a sequence of actions then we'd have to squeeze the last value of x to get final prediction.
-
         # Back to old stuff
         shift = self.shift_linear_phi(x)
         shift = torch.clamp(shift, min=-5.0, max=5.0)
@@ -136,25 +127,36 @@ class GaussianPolicy(nn.Module):
         mean, log_std = self.forward_theta(state)
         std = log_std.exp()
 
+        # Sample from the base distribution first.
+        base_dist = Normal(mean, std)
+        base_action = base_dist.rsample()
+
+        # Base distribution
+        log_prob = base_dist.log_prob(base_action)
+
         if self.action_lookback > 0:
             # Use the previous action(s) to shift the mean of the prediction.
             phi_log_scale, phi_shift = self.forward_phi(prev_actions)
             # Now we adjust the mean and std based on the outputs from phi_network
+            action = base_action * phi_log_scale.exp() + phi_shift
+            # Also want to adjust the mean, so that evaluation mode also works
             mean = mean * phi_log_scale.exp() + phi_shift
+            # Affine Transform Scaling
+            log_prob -= phi_log_scale
+        else:
+            action = base_action
 
-        normal = Normal(mean, std)
-        x_t = normal.rsample()  # for reparameterization trick (mean + std * N(0,1))
-        y_t = torch.tanh(x_t)
+        # Tanh the action
+        tanh_action = torch.tanh(action)
 
-        log_prob = normal.log_prob(x_t)
         # Enforcing Action Bound
-        log_prob -= torch.log(self.action_scale * (1 - y_t.pow(2)) + epsilon)
+        log_prob -= torch.log(self.action_scale * (1 - tanh_action.pow(2)) + epsilon)
         log_prob = log_prob.sum(1, keepdim=True)
 
         mean_ret = torch.tanh(mean) * self.action_scale + self.action_bias
-        action = y_t * self.action_scale + self.action_bias
+        action_ret = tanh_action * self.action_scale + self.action_bias
 
-        return action, log_prob, mean_ret
+        return action_ret, log_prob, mean_ret
 
     def to(self, device):
         self.action_scale = self.action_scale.to(device)
