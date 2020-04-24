@@ -161,7 +161,7 @@ with experiment.train():
             state = next_state
 
             # Do an eval episodes every 10000 steps
-            if total_numsteps % 5000 == 0 and total_numsteps > args.start_steps:
+            if total_numsteps % 2000 == 0 and total_numsteps > args.start_steps:
                 avg_reward_eval = 0.
                 episodes_eval = 1 # Only do 1 episode for each evaluation. If you do more will screw up logging.
 
@@ -188,19 +188,19 @@ with experiment.train():
                             prev_actions_eval = np.concatenate((prev_actions_eval[:-action_space_size], action_eval))
                             prev_states_eval = np.concatenate((prev_states_eval[:-state_space_size], state_eval))
                         # Before we step in the environment, save the Mujoco state (qpos and qvel)
-                        episode_eval_dict['qpos'].append(env.sim.get_state()[1]) # qpos
-                        episode_eval_dict['qvel'].append(env.sim.get_state()[2]) # qvel
+                        episode_eval_dict['qpos'].append(env.sim.get_state()[1].tolist()) # qpos
+                        episode_eval_dict['qvel'].append(env.sim.get_state()[2].tolist()) # qvel
                         # Now we step forward in the environment by taking our action
                         next_state_eval, reward_eval, done_eval, _ = env.step(action_eval)
                         # We have completed an evaluation step, now log it to the dictionary
-                        episode_eval_dict['state'].append(state_eval)
-                        episode_eval_dict['action'].append(action_eval)
-                        episode_eval_dict['reward'].append(reward_eval)
+                        episode_eval_dict['state'].append(state_eval.tolist())
+                        episode_eval_dict['action'].append(action_eval.tolist())
+                        episode_eval_dict['reward'].append(reward_eval.tolist())
                         # Also add stats about the output of our neural networks:
-                        episode_eval_dict['base_mean'].append(bmean)
-                        episode_eval_dict['base_std'].append(bstd)
-                        episode_eval_dict['adj_scale'].append(ascle)
-                        episode_eval_dict['adj_shift'].append(ashft)
+                        episode_eval_dict['base_mean'].append(bmean.tolist())
+                        episode_eval_dict['base_std'].append(bstd.tolist())
+                        episode_eval_dict['adj_scale'].append(ascle.tolist())
+                        episode_eval_dict['adj_shift'].append(ashft.tolist())
 
                         # Move to the next state
                         state_eval = next_state_eval
