@@ -62,7 +62,8 @@ class QNetwork(nn.Module):
 
 
 class GaussianPolicy(nn.Module):
-    def __init__(self, num_inputs, num_actions, hidden_dim, action_space=None, batch_size=256, action_lookback=0):
+    def __init__(self, num_inputs, num_actions, hidden_dim, action_space=None,
+                action_lookback=0, use_prev_states=False, use_iaf=False, constant_scale=False ):
         super(GaussianPolicy, self).__init__()
         # Specifying the Theta Network (will map states to some latent space equal in dimension to action space)
         self.linear_theta_1 = nn.Linear(num_inputs, hidden_dim)
@@ -71,19 +72,26 @@ class GaussianPolicy(nn.Module):
         self.mean_linear_theta = nn.Linear(hidden_dim, num_actions)
         self.log_std_linear_theta = nn.Linear(hidden_dim, num_actions)
 
+        # How far back we look with the phi network
         self.action_lookback = action_lookback
+        # Do we use prev actions and states? Or just prev actions
+        self.use_prev_states = use_prev_states
+        # Do we use inverse autoregressive transform
+        self.use_iaf = use_iaf
+        # Do we use a constant scale?
+        self.constant_scale = constant_scale
 
-        # Specifying the Phi Network (will adjust the output of the theta network based on previous action)
-        # Old stuff
-        print("Gaussian Policy ALB:", self.action_lookback)
-        self.linear_phi_1 = nn.Linear(num_actions * self.action_lookback, hidden_dim)
-        self.linear_phi_2 = nn.Linear(hidden_dim, hidden_dim)
-        # To be added on next with rnn implementation:
-        # self.lstm = nn.LSTM(num_actions, hidden_dim, 2, batch_first=False)
-        # self.hidden = (torch.randn(2, batch_size, hidden_dim), torch.randn(2, batch_size, hidden_dim))
+        if use_prev_states:
+            phi_input_dim = (num_inputs + num_actions) * self.action_lookback
+        else:
+            phi_input_dim = num_actions * self.action_lookback
 
-        self.log_scale_linear_phi = nn.Linear(hidden_dim, num_actions)
-        self.shift_linear_phi = nn.Linear(hidden_dim, num_actions)
+        if action_lookback > 0:
+            self.linear_phi_1 = nn.Linear(phi_input_dim, hidden_dim)
+            self.linear_phi_2 = nn.Linear(hidden_dim, hidden_dim)
+
+            self.log_scale_linear_phi = nn.Linear(hidden_dim, num_actions)
+            self.shift_linear_phi = nn.Linear(hidden_dim, num_actions)
 
         self.apply(weights_init_)
 
@@ -110,19 +118,30 @@ class GaussianPolicy(nn.Module):
     def reset_hidden_state(self, batch_size):
         self.hidden = (torch.randn(self.hidden[0].shape), torch.randn(self.hidden[1].shape))
 
-    def forward_phi(self, prev_actions):
-        # Old stuff
-        x = F.relu(self.linear_phi_1(prev_actions))
+    def forward_phi(self, prev_states, prev_actions):
+
+        if self.use_prev_states:
+            # Concatenate the previous states to the previous actions input to get new input.
+            inp = torch.cat((prev_states, prev_actions), 1)
+        else:
+            inp = prev_actions
+        x = F.relu(self.linear_phi_1(inp))
         x = F.relu(self.linear_phi_2(x))
 
-        # Back to old stuff
-        shift = self.shift_linear_phi(x)
-        shift = torch.clamp(shift, min=-5.0, max=5.0)
-        log_scale = self.log_scale_linear_phi(x)
-        log_scale = torch.clamp(log_scale, min=LOG_SIG_MIN, max=LOG_SIG_MAX) # Ensures that the scale factor is > 0
-        return log_scale, shift
+        if self.use_iaf:
+            # Using inverse ar flows
+            sigma = torch.sigmoid(self.log_scale_linear_phi(x))
+            m = self.shift_linear_phi(x)
+            m = torch.clamp(m, min=-5.0, max=5.0)
+            return m, sigma
+        else:
+            shift = self.shift_linear_phi(x)
+            shift = torch.clamp(shift, min=-5.0, max=5.0)
+            log_scale = self.log_scale_linear_phi(x)
+            log_scale = torch.clamp(log_scale, min=LOG_SIG_MIN, max=LOG_SIG_MAX) # Ensures that the scale factor is > 0
+            return shift, log_scale
 
-    def sample(self, state, prev_actions):
+    def sample(self, state, prev_states, prev_actions, return_distribution=False):
         # First pass the state through the state network
         mean, log_std = self.forward_theta(state)
         std = log_std.exp()
@@ -135,16 +154,39 @@ class GaussianPolicy(nn.Module):
         log_prob = base_dist.log_prob(base_action)
 
         if self.action_lookback > 0:
-            # Use the previous action(s) to shift the mean of the prediction.
-            phi_log_scale, phi_shift = self.forward_phi(prev_actions)
-            # Now we adjust the mean and std based on the outputs from phi_network
-            action = base_action * phi_log_scale.exp() + phi_shift
-            # Also want to adjust the mean, so that evaluation mode also works
-            mean = mean * phi_log_scale.exp() + phi_shift
-            # Affine Transform Scaling
-            log_prob -= phi_log_scale
+            m, sigma = self.forward_phi(prev_states, prev_actions)
+            if self.use_iaf:
+                # Inverse ar transform
+                action = sigma * base_action + (1 - sigma) * m
+                log_prob -= sigma
+                # For logging
+                ascle = sigma
+                ashft = m
+            else:
+                # If we are here, we are doing the standard autoregressive transform
+                # Now we adjust the mean and std based on the outputs from phi_network
+                if self.constant_scale:
+                    # If we only want to incorporate the shift execute this code
+                    action = base_action + m
+                    mean = mean + m
+                    # For logging
+                    ascle = torch.ones(base_action.shape)
+                    ashft = m
+                else:
+                    action = base_action * sigma.exp() + m
+                    # Also want to adjust the mean, so that evaluation mode also works
+                    mean = mean * sigma.exp() + m
+                    # Affine Transform Scaling
+                    log_prob -= sigma
+                    # For logging
+                    ascle = sigma.exp()
+                    ashft = m
+
         else:
             action = base_action
+            # For logging
+            ascle = torch.ones(action.shape)
+            ashft = torch.zeros(action.shape)
 
         # Tanh the action
         tanh_action = torch.tanh(action)
@@ -155,8 +197,10 @@ class GaussianPolicy(nn.Module):
 
         mean_ret = torch.tanh(mean) * self.action_scale + self.action_bias
         action_ret = tanh_action * self.action_scale + self.action_bias
-
-        return action_ret, log_prob, mean_ret
+        if return_distribution:
+            return action_ret, log_prob, mean_ret, mean, std, ascle, ashft
+        else:
+            return action_ret, log_prob, mean_ret
 
     def to(self, device):
         self.action_scale = self.action_scale.to(device)
