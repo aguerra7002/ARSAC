@@ -7,7 +7,7 @@
   "lr": 0.0003,
   "alpha": 0.2,
   "automatic_entropy_tuning": false,
-  "use_iaf_transform": false,
+  "use_gated_transform": true,
   "constant_scale": false,
   "use_prev_states": false,
   "action_lookback": 1,
@@ -17,6 +17,7 @@
   "hidden_size": 256,
   "updates_per_step": 1,
   "start_steps": 1000,
+  "eval_steps": 5000,
   "target_update_interval": 1,
   "replay_size": 1000000,
   "cuda": false

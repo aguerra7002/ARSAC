@@ -16,7 +16,7 @@ class ARRL(object):
         self.action_lookback = args.action_lookback
         self.constant_scale = args.constant_scale
         self.use_prev_states = args.use_prev_states
-        self.use_iaf_transform = args.use_iaf_transform
+        self.use_iaf_transform = args.use_gated_transform
 
         self.policy_type = args.policy
         self.target_update_interval = args.target_update_interval

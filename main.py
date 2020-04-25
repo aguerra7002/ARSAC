@@ -35,7 +35,7 @@ parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
 parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, metavar='G',
                     help='Automatically adjust α (default: False)')
 ################ Specific to ARSAC ####################
-parser.add_argument('--use_iaf_transform', type=bool, default=False, metavar='G',
+parser.add_argument('--use_gated_transform', type=bool, default=True, metavar='G',
                     help='Use Inverse Autoregressive Flow')
 parser.add_argument('--constant_scale', type=bool, default=False, metavar='G',
                     help='Causes normal autoregressive flow to only have a shift component')
@@ -56,6 +56,8 @@ parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
                     help='model updates per simulator step (default: 1)')
 parser.add_argument('--start_steps', type=int, default=1000, metavar='N',
                     help='Steps sampling random actions (default: 10000)')
+parser.add_argument('--eval_steps', type=int, default=5000, metavar='N',
+                    help='Steps between each evaluation episode')
 parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
                     help='Value target update per no. of updates per step (default: 1)')
 parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
@@ -135,10 +137,11 @@ with experiment.train():
                     critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates)
 
                     # Log to Comet.ml
-                    experiment.log_metric("Critic_1_Loss", critic_1_loss, step=updates)
-                    experiment.log_metric("Critic_2_Loss", critic_2_loss, step=updates)
-                    experiment.log_metric("Policy_Loss", policy_loss, step=updates)
-                    experiment.log_metric("Entropy_Loss", ent_loss, step=updates)
+                    #experiment.log_metric("Critic_1_Loss", critic_1_loss, step=updates)
+                    #experiment.log_metric("Critic_2_Loss", critic_2_loss, step=updates)
+                    #experiment.log_metric("Policy_Loss", policy_loss, step=updates)
+                    #experiment.log_metric("Entropy_Loss", ent_loss, step=updates)
+
 
                     updates += 1
 
@@ -160,14 +163,14 @@ with experiment.train():
 
             state = next_state
 
-            # Do an eval episodes every 10000 steps
-            if total_numsteps % 2000 == 0 and total_numsteps > args.start_steps:
+            # Do an eval episode every <eval_steps> steps
+            if total_numsteps % args.eval_steps == 0 and total_numsteps > args.start_steps:
                 avg_reward_eval = 0.
                 episodes_eval = 1 # Only do 1 episode for each evaluation. If you do more will screw up logging.
 
                 # This dictionary will be useful for logging to Comet.
-                episode_eval_dict = { 'state' : [], 'action' : [], 'reward' : [], 'qpos' : [], 'qvel' : [],
-                                      'base_mean' : [], 'base_std' : [], 'adj_scale' : [], 'adj_shift' : []}
+                episode_eval_dict = {'state': [], 'action': [], 'reward': [], 'qpos': [], 'qvel': [],
+                                     'base_mean': [], 'base_std': [], 'adj_scale': [], 'adj_shift': []}
 
                 for _ in range(episodes_eval):
                     state_eval = env.reset()
@@ -212,14 +215,15 @@ with experiment.train():
                     avg_reward_eval += episode_reward_eval
                 avg_reward_eval /= episodes_eval
 
+                # Log the eval reward to Comet-ML
+                experiment.log_metric("Avg. Episode_Reward", avg_reward_eval, step=int(total_numsteps / args.eval_steps))
+
                 # Log the episode reward to Comet.ml
-                experiment.log_metric("Avg_Episode_Reward", avg_reward_eval, step=total_numsteps / 10000)
-                # Log episode as JSON format
                 for item_str in episode_eval_dict.keys():
                     item = episode_eval_dict[item_str]
-                    json_str = json.dumps(item)
+                    json_str = json.dumps(item, separators=(",", ":"), ensure_ascii=False).encode('utf8')
                     item_name = 'episode_step_' + str(total_numsteps) + "_" + item_str
-                    experiment.log_asset_data(json_str, name=item_name)
+                    experiment.log_asset_data(item, name=item_name, step=int(total_numsteps / args.eval_steps))
 
                 print("----------------------------------------")
                 print("Test Episodes: {}, Avg. Reward: {}".format(episodes_eval, round(avg_reward_eval, 2)))
@@ -227,8 +231,8 @@ with experiment.train():
             if total_numsteps > args.num_steps:
                 break
 
-        # Log to comet.ml (needed for viewing results remotely
-        experiment.log_metric("Epsiode_Reward", episode_reward, step=i_episode)
+        # Log to comet.ml
+        #experiment.log_metric("Epsiode_Reward", episode_reward, step=i_episode)
         # Log to console
         print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps,
                                                                                       episode_steps,

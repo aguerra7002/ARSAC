@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 
-LOG_SIG_MAX = 3
+LOG_SIG_MAX = 5
 LOG_SIG_MIN = -20
 epsilon = 1e-6
 
@@ -63,7 +63,7 @@ class QNetwork(nn.Module):
 
 class GaussianPolicy(nn.Module):
     def __init__(self, num_inputs, num_actions, hidden_dim, action_space=None,
-                action_lookback=0, use_prev_states=False, use_iaf=False, constant_scale=False ):
+                action_lookback=0, use_prev_states=False, use_gated_transform=False, ignore_scale=False ):
         super(GaussianPolicy, self).__init__()
         # Specifying the Theta Network (will map states to some latent space equal in dimension to action space)
         self.linear_theta_1 = nn.Linear(num_inputs, hidden_dim)
@@ -77,9 +77,9 @@ class GaussianPolicy(nn.Module):
         # Do we use prev actions and states? Or just prev actions
         self.use_prev_states = use_prev_states
         # Do we use inverse autoregressive transform
-        self.use_iaf = use_iaf
-        # Do we use a constant scale?
-        self.constant_scale = constant_scale
+        self.use_gated_transform = use_gated_transform
+        # Do we use a scaling factor of 1?
+        self.ignore_scale = ignore_scale
 
         if use_prev_states:
             phi_input_dim = (num_inputs + num_actions) * self.action_lookback
@@ -128,11 +128,11 @@ class GaussianPolicy(nn.Module):
         x = F.relu(self.linear_phi_1(inp))
         x = F.relu(self.linear_phi_2(x))
 
-        if self.use_iaf:
+        if self.use_gated_transform:
             # Using inverse ar flows
             sigma = torch.sigmoid(self.log_scale_linear_phi(x))
             m = self.shift_linear_phi(x)
-            m = torch.clamp(m, min=-5.0, max=5.0)
+            #m = torch.clamp(m) # TODO: See if we need to clamp?
             return m, sigma
         else:
             shift = self.shift_linear_phi(x)
@@ -155,17 +155,17 @@ class GaussianPolicy(nn.Module):
 
         if self.action_lookback > 0:
             m, sigma = self.forward_phi(prev_states, prev_actions)
-            if self.use_iaf:
+            if self.use_gated_transform:
                 # Inverse ar transform
                 action = sigma * base_action + (1 - sigma) * m
-                log_prob -= sigma
+                log_prob -= sigma.log() # Convert back to log so prb is additive
                 # For logging
                 ascle = sigma
                 ashft = m
             else:
                 # If we are here, we are doing the standard autoregressive transform
                 # Now we adjust the mean and std based on the outputs from phi_network
-                if self.constant_scale:
+                if self.ignore_scale:
                     # If we only want to incorporate the shift execute this code
                     action = base_action + m
                     mean = mean + m
