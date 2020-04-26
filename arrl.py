@@ -51,9 +51,9 @@ class ARRL(object):
 
     def select_action(self, state, prev_states=None, prev_actions=None, eval=False, return_distribution=False):
         state = torch.FloatTensor(state).to(self.device).unsqueeze(0)
-        if None not in prev_actions:
+        if prev_actions is not None:
             prev_actions = torch.FloatTensor(prev_actions).to(self.device).unsqueeze(0)
-        if None not in prev_states:
+        if prev_states is not None:
             prev_states = torch.FloatTensor(prev_states).to(self.device).unsqueeze(0)
         if not eval:
             if return_distribution:

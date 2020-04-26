@@ -48,7 +48,7 @@ parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
 parser.add_argument('--batch_size', type=int, default=256, metavar='N',
                     help='batch size (default: 256)')
-parser.add_argument('--num_steps', type=int, default=1000001, metavar='N',
+parser.add_argument('--num_steps', type=int, default=3000, metavar='N',
                     help='maximum number of steps (default: 1000000)')
 parser.add_argument('--hidden_size', type=int, default=256, metavar='N',
                     help='hidden size (default: 256)')
@@ -97,6 +97,7 @@ memory = ReplayBuffer(args.replay_size)
 # Training Loop
 total_numsteps = 0
 updates = 0
+stop_training = False
 
 with experiment.train():
     for i_episode in itertools.count(1):
@@ -229,6 +230,7 @@ with experiment.train():
                 print("Test Episodes: {}, Avg. Reward: {}".format(episodes_eval, round(avg_reward_eval, 2)))
                 print("----------------------------------------")
             if total_numsteps > args.num_steps:
+                stop_training = True
                 break
 
         # Log to comet.ml
@@ -237,6 +239,8 @@ with experiment.train():
         print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps,
                                                                                       episode_steps,
                                                                                       round(episode_reward, 2)))
+        if stop_training:
+            break
 
 
 

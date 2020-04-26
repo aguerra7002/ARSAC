@@ -13,7 +13,7 @@
   "action_lookback": 1,
   "seed": 123456,
   "batch_size": 256,
-  "num_steps": 1000001,
+  "num_steps": 3000,
   "hidden_size": 256,
   "updates_per_step": 1,
   "start_steps": 1000,
