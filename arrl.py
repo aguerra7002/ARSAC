@@ -91,14 +91,14 @@ class ARRL(object):
         if None not in prev_state_batch:
             # we need to put together prev_next_state_batch for feeding to the actor network later.
             state_space_size = int(prev_state_batch.shape[1] / self.action_lookback)
-            prev_next_state_batch = np.concatenate((prev_state_batch[:, :-state_space_size], state_batch), axis=1)
+            prev_next_state_batch = np.concatenate((prev_state_batch[:, state_space_size:], state_batch), axis=1)
             prev_next_state_batch = torch.FloatTensor(prev_next_state_batch).to(self.device)
             prev_state_batch = torch.FloatTensor(prev_state_batch).to(self.device)
 
         if None not in prev_action_batch:
             # Same as with states, need to compute the prev_next_action_batch
             action_space_size = int(prev_action_batch.shape[1] / self.action_lookback)
-            prev_next_action_batch = np.concatenate((prev_action_batch[:, :-action_space_size], action_batch), axis=1)
+            prev_next_action_batch = np.concatenate((prev_action_batch[:, action_space_size:], action_batch), axis=1)
             prev_next_action_batch = torch.FloatTensor(prev_next_action_batch).to(self.device)
             prev_action_batch = torch.FloatTensor(prev_action_batch).to(self.device)
 

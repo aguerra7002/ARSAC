@@ -139,8 +139,8 @@ with experiment.train():
             memory.push(prev_states, prev_actions, state, action, reward, next_state, mask)
 
             if lookback > 0:
-                prev_actions = np.concatenate((prev_actions[:-action_space_size], action))
-                prev_states = np.concatenate((prev_states[:-state_space_size], state))
+                prev_actions = np.concatenate((prev_actions[action_space_size:], action))
+                prev_states = np.concatenate((prev_states[state_space_size:], state))
 
             state = next_state
 
@@ -171,8 +171,8 @@ with experiment.train():
                             agent.select_action(state_eval, prev_states_eval, prev_actions_eval, eval=True, return_distribution=True)
 
                         if lookback > 0:
-                            prev_actions_eval = np.concatenate((prev_actions_eval[:-action_space_size], action_eval))
-                            prev_states_eval = np.concatenate((prev_states_eval[:-state_space_size], state_eval))
+                            prev_actions_eval = np.concatenate((prev_actions_eval[action_space_size:], action_eval))
+                            prev_states_eval = np.concatenate((prev_states_eval[state_space_size:], state_eval))
                         # Before we step in the environment, save the Mujoco state (qpos and qvel)
                         episode_eval_dict['qpos'].append(env.sim.get_state()[1].tolist()) # qpos
                         episode_eval_dict['qvel'].append(env.sim.get_state()[2].tolist()) # qvel
