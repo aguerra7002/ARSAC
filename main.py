@@ -208,9 +208,9 @@ with experiment.train():
                     item_name = 'episode_step_' + str(total_numsteps) + "_" + item_str
                     experiment.log_asset_data(item, name=item_name, step=int(total_numsteps / args.eval_steps))
 
-                print("----------------------------------------")
-                print("Test Episodes: {}, Avg. Reward: {}".format(episodes_eval, round(avg_reward_eval, 2)))
-                print("----------------------------------------")
+                #print("----------------------------------------")
+                #print("Test Episodes: {}, Avg. Reward: {}".format(episodes_eval, round(avg_reward_eval, 2)))
+                #print("----------------------------------------")
 
                 # Now we are done evaluating. Before we leave, we have to set the state properly.
                 env.sim.set_state(temp_state)
@@ -222,9 +222,10 @@ with experiment.train():
         # Log to comet.ml
         experiment.log_metric("Epsiode_Reward", episode_reward, step=i_episode)
         # Log to console
-        print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps,
-                                                                                      episode_steps,
-                                                                                      round(episode_reward, 2)))
+        #print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps,
+        #                                                                              episode_steps,
+        #                                                                              round(episode_reward, 2)))
+        
         if stop_training:
             break
 
