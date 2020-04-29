@@ -37,7 +37,7 @@ parser.add_argument('--ignore_scale', type=bool, default=False, metavar='G',
                     help='Causes normal autoregressive flow to only have a shift component')
 parser.add_argument('--use_prev_states', type=bool, default=False, metavar='G',
                     help='Determines whether or not to use previous states as well as actions')
-parser.add_argument('--action_lookback', type=int, default=3, metavar='G',
+parser.add_argument('--action_lookback', type=int, default=0, metavar='G',
                     help='Use phi network to de-correlate time dependence and state by using previous action(s)')
 #######################################################
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
@@ -208,9 +208,9 @@ with experiment.train():
                     item_name = 'episode_step_' + str(total_numsteps) + "_" + item_str
                     experiment.log_asset_data(item, name=item_name, step=int(total_numsteps / args.eval_steps))
 
-                #print("----------------------------------------")
-                #print("Test Episodes: {}, Avg. Reward: {}".format(episodes_eval, round(avg_reward_eval, 2)))
-                #print("----------------------------------------")
+                print("----------------------------------------")
+                print("Test Episodes: {}, Avg. Reward: {}".format(episodes_eval, round(avg_reward_eval, 2)))
+                print("----------------------------------------")
 
                 # Now we are done evaluating. Before we leave, we have to set the state properly.
                 env.sim.set_state(temp_state)
@@ -222,9 +222,9 @@ with experiment.train():
         # Log to comet.ml
         experiment.log_metric("Epsiode_Reward", episode_reward, step=i_episode)
         # Log to console
-        #print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps,
-                                                                                      #episode_steps,
-                                                                                      #round(episode_reward, 2)))
+        print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps,
+                                                                                      episode_steps,
+                                                                                      round(episode_reward, 2)))
         if stop_training:
             break
 

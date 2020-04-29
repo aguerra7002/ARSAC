@@ -88,6 +88,9 @@ class ARRL(object):
         prev_state_batch, prev_action_batch, state_batch, action_batch, reward_batch, next_state_batch, mask_batch = \
             memory.sample(batch_size=batch_size)
 
+        prev_next_state_batch = None
+        prev_next_action_batch = None
+
         if None not in prev_state_batch:
             # we need to put together prev_next_state_batch for feeding to the actor network later.
             state_space_size = int(prev_state_batch.shape[1] / self.action_lookback)
