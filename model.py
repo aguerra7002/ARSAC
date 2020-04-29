@@ -104,7 +104,6 @@ class GaussianPolicy(nn.Module):
                 (action_space.high - action_space.low) / 2.)
             self.action_bias = torch.FloatTensor(
                 (action_space.high + action_space.low) / 2.)
-        print(self.action_bias, self.action_scale)
 
     def forward_theta(self, state):
         x = F.relu(self.linear_theta_1(state))
@@ -113,10 +112,6 @@ class GaussianPolicy(nn.Module):
         log_std = self.log_std_linear_theta(x)
         log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX)
         return mean, log_std
-
-    # Randomly initialize hidden/cell states
-    def reset_hidden_state(self, batch_size):
-        self.hidden = (torch.randn(self.hidden[0].shape), torch.randn(self.hidden[1].shape))
 
     def forward_phi(self, prev_states, prev_actions):
 
@@ -140,6 +135,7 @@ class GaussianPolicy(nn.Module):
             log_scale = self.log_scale_linear_phi(x)
             log_scale = torch.clamp(log_scale, min=LOG_SIG_MIN, max=LOG_SIG_MAX) # Ensures that the scale factor is > 0
             return shift, log_scale
+
 
     def sample(self, state, prev_states, prev_actions, return_distribution=False):
         # First pass the state through the state network
@@ -207,8 +203,6 @@ class GaussianPolicy(nn.Module):
         self.action_bias = self.action_bias.to(device)
         return super(GaussianPolicy, self).to(device)
 
-    
-    
     
     
 """

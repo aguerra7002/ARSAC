@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.optim import Adam
@@ -14,14 +15,14 @@ class ARRL(object):
         self.alpha = args.alpha
 
         self.action_lookback = args.action_lookback
-        self.constant_scale = args.constant_scale
+        self.ignore_scale = args.ignore_scale
         self.use_prev_states = args.use_prev_states
-        self.use_iaf_transform = args.use_gated_transform
+        self.use_gated_transform = args.use_gated_transform
 
         self.policy_type = args.policy
         self.target_update_interval = args.target_update_interval
         self.automatic_entropy_tuning = args.automatic_entropy_tuning
-        print("cuda" if args.cuda else "cpu")
+
         self.device = torch.device("cuda" if args.cuda else "cpu")
 
         self.critic = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(device=self.device)
@@ -32,14 +33,14 @@ class ARRL(object):
 
         if self.policy_type == "Gaussian":
             # Target Entropy = −dim(A) (e.g. , -6 for HalfCheetah-v2) as given in the paper
-            if self.automatic_entropy_tuning == True:
+            if self.automatic_entropy_tuning:
                 self.target_entropy = -torch.prod(torch.Tensor(action_space.shape).to(self.device)).item()
                 self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
                 self.alpha_optim = Adam([self.log_alpha], lr=args.lr)
 
             self.policy = GaussianPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space,
-                                        self.action_lookback, self.use_prev_states, self.use_iaf_transform,
-                                        self.constant_scale).to(self.device)
+                                        self.action_lookback, self.use_prev_states, self.use_gated_transform,
+                                        self.ignore_scale).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
         else:
@@ -49,12 +50,16 @@ class ARRL(object):
                 self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
+
     def select_action(self, state, prev_states=None, prev_actions=None, eval=False, return_distribution=False):
+
         state = torch.FloatTensor(state).to(self.device).unsqueeze(0)
+
         if prev_actions is not None:
             prev_actions = torch.FloatTensor(prev_actions).to(self.device).unsqueeze(0)
         if prev_states is not None:
             prev_states = torch.FloatTensor(prev_states).to(self.device).unsqueeze(0)
+
         if not eval:
             if return_distribution:
                 # We pick an action based off a gaussian policy to encourage the model to explore
@@ -73,7 +78,7 @@ class ARRL(object):
         if return_distribution:
             return self.to_numpy(action), self.to_numpy(bmean), self.to_numpy(bstd), self.to_numpy(ascle), self.to_numpy(ashft)
         else:
-            return self.to_numpy(action)
+            return action.detach().cpu().numpy()[0]
 
     def to_numpy(self, arr):
         return arr.detach().cpu().numpy()[0]
@@ -82,10 +87,22 @@ class ARRL(object):
         # Sample a batch from memory
         prev_state_batch, prev_action_batch, state_batch, action_batch, reward_batch, next_state_batch, mask_batch = \
             memory.sample(batch_size=batch_size)
+
         if None not in prev_state_batch:
+            # we need to put together prev_next_state_batch for feeding to the actor network later.
+            state_space_size = int(prev_state_batch.shape[1] / self.action_lookback)
+            prev_next_state_batch = np.concatenate((prev_state_batch[:, :-state_space_size], state_batch), axis=1)
+            prev_next_state_batch = torch.FloatTensor(prev_next_state_batch).to(self.device)
             prev_state_batch = torch.FloatTensor(prev_state_batch).to(self.device)
+
         if None not in prev_action_batch:
+            # Same as with states, need to compute the prev_next_action_batch
+            action_space_size = int(prev_action_batch.shape[1] / self.action_lookback)
+            prev_next_action_batch = np.concatenate((prev_action_batch[:, :-action_space_size], action_batch), axis=1)
+            prev_next_action_batch = torch.FloatTensor(prev_next_action_batch).to(self.device)
             prev_action_batch = torch.FloatTensor(prev_action_batch).to(self.device)
+
+
         state_batch = torch.FloatTensor(state_batch).to(self.device)
         next_state_batch = torch.FloatTensor(next_state_batch).to(self.device)
         action_batch = torch.FloatTensor(action_batch).to(self.device)
@@ -93,15 +110,19 @@ class ARRL(object):
         mask_batch = torch.FloatTensor(mask_batch).to(self.device).unsqueeze(1)
 
         with torch.no_grad():
+            # Old (wrong)
+            # next_state_action, next_state_log_pi, _ = \
+            #     self.policy.sample(next_state_batch, prev_state_batch, prev_action_batch)
+            # New:
             next_state_action, next_state_log_pi, _ = \
-                self.policy.sample(next_state_batch, prev_state_batch, prev_action_batch)
+                self.policy.sample(next_state_batch, prev_next_state_batch, prev_next_action_batch)
             qf1_next_target, qf2_next_target = self.critic_target(next_state_batch, next_state_action)
             min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
             next_q_value = reward_batch + mask_batch * self.gamma * (min_qf_next_target)
 
         qf1, qf2 = self.critic(state_batch,
                                action_batch)  # Two Q-functions to mitigate positive bias in the policy improvement step
-        # print("In between4")
+
         qf1_loss = F.mse_loss(qf1, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
         qf2_loss = F.mse_loss(qf2, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
         pi, log_pi, _ = self.policy.sample(state_batch, prev_state_batch, prev_action_batch)
