@@ -37,8 +37,12 @@ parser.add_argument('--ignore_scale', type=bool, default=False, metavar='G',
                     help='Causes normal autoregressive flow to only have a shift component')
 parser.add_argument('--use_prev_states', type=bool, default=False, metavar='G',
                     help='Determines whether or not to use previous states as well as actions')
-parser.add_argument('--action_lookback', type=int, default=0, metavar='G',
+parser.add_argument('--action_lookback', type=int, default=5, metavar='G',
                     help='Use phi network to de-correlate time dependence and state by using previous action(s)')
+parser.add_argument('--add_state_noise', type=bool, default=False, metavar='G',
+                    help='Adds a small amount of Gaussian noise to the state')
+parser.add_argument('--add_action_noise', type=bool, default=False, metavar='G',
+                    help='Adds a small amount of Gaussian noise to the actions')
 #######################################################
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
@@ -110,8 +114,9 @@ with experiment.train():
                 action = env.action_space.sample()  # Sample random action
             else:
 
-                # Sample action from policy
-                action = agent.select_action(state, prev_states, prev_actions)
+                # Sample action from policy, adding noise to state if we want to
+                state_noise = np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0
+                action = agent.select_action(state + state_noise, prev_states, prev_actions)
 
             if len(memory) > args.batch_size:
                 # Number of updates per step in environment
@@ -215,7 +220,7 @@ with experiment.train():
                 # Now we are done evaluating. Before we leave, we have to set the state properly.
                 env.sim.set_state(temp_state)
 
-            if total_numsteps > args.num_steps:
+            if total_numsteps >= args.num_steps:
                 stop_training = True
                 break
 
@@ -225,10 +230,9 @@ with experiment.train():
         #print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps,
         #                                                                              episode_steps,
         #                                                                              round(episode_reward, 2)))
-        
+
         if stop_training:
             break
-
 
 
 # Save the final model before finishing program
