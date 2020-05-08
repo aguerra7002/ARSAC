@@ -10,14 +10,14 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.animation import PillowWriter
 from matplotlib import rc
-matplotlib.style.use('seaborn')
-rc('text', usetex=True)
-rc('font', family='serif')
+#matplotlib.style.use('seaborn')
+#rc('text', usetex=True)
+#rc('font', family='serif')
 import seaborn as sns
-sns.set_palette('Paired')
+#sns.set_palette('Paired')
 
 # comet
-api_key = 'tHDbEydFQGW7F1MWmIKlEvrly'
+api_key = ''
 workspace = 'aguerra'
 project_name = 'arsac'
 comet_api = API(api_key=api_key)
@@ -145,7 +145,8 @@ def plot_rewards(env_exp_dict, save_folder):
         elif len(returns_list) == 1:
             plt.plot(steps, savgol_filter(returns_list[0], WINDOW, POLY_DEG), label=inference_type)
     plt.legend(fontsize=12)
-    plt.xlabel(r'Steps $\times 1,000$', fontsize=15)
+    #plt.xlabel(r'Steps $\times 1,000$', fontsize=15)
+    plt.xlabel('Steps')
     plt.ylabel('Cumulative Reward', fontsize=15)
     plt.title(env, fontsize=20)
     plt.savefig(save_folder + 'rewards.png')
@@ -293,5 +294,5 @@ if __name__ == "__main__":
 
     #########    Plotting the rewards    ##########
 
-    #plot_rewards(env_exp_dict, base_dir + env + "/")
+    plot_rewards(env_exp_dict, base_dir + env + "/")
 
