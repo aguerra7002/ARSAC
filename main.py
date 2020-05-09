@@ -99,7 +99,7 @@ with experiment.train():
         episode_reward = 0
         episode_steps = 0
         done = False
-        state = env.reset()
+        state = env.reset() + np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0
         lookback = args.action_lookback
         # Reset the previous action, as our program factors this into account when taking future actions
         if lookback > 0:
@@ -115,8 +115,7 @@ with experiment.train():
             else:
 
                 # Sample action from policy, adding noise to state if we want to
-                state_noise = np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0
-                action = agent.select_action(state + state_noise, prev_states, prev_actions)
+                action = agent.select_action(state, prev_states, prev_actions)
 
             if len(memory) > args.batch_size:
                 # Number of updates per step in environment
@@ -132,7 +131,10 @@ with experiment.train():
 
                     updates += 1
 
-            next_state, reward, done, _ = env.step(action) # Step
+            action_noise = np.random.normal(0, 0.1, state_space_size) if args.add_action_noise else 0
+            next_state, reward, done, _ = env.step(action + action_noise) # Step
+            # Add state noise if that parameter is true
+            next_state += np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0
             episode_steps += 1
             total_numsteps += 1
             episode_reward += reward
@@ -161,7 +163,7 @@ with experiment.train():
                                      'base_mean': [], 'base_std': [], 'adj_scale': [], 'adj_shift': []}
 
                 for _ in range(episodes_eval):
-                    state_eval = env.reset()
+                    state_eval = env.reset() + np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0
                     if lookback > 0:
                         prev_actions_eval = np.zeros(action_space_size * lookback)
                         prev_states_eval = np.zeros(state_space_size * lookback)
@@ -182,7 +184,10 @@ with experiment.train():
                         episode_eval_dict['qpos'].append(env.sim.get_state()[1].tolist()) # qpos
                         episode_eval_dict['qvel'].append(env.sim.get_state()[2].tolist()) # qvel
                         # Now we step forward in the environment by taking our action
-                        next_state_eval, reward_eval, done_eval, _ = env.step(action_eval)
+                        action_noise_eval = np.random.normal(0, 0.1, state_space_size) if args.add_action_noise else 0
+                        next_state_eval, reward_eval, done_eval, _ = env.step(action_eval + action_noise_eval)
+                        # Add state noise if that parameter is true
+                        next_state_eval += np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0
                         # We have completed an evaluation step, now log it to the dictionary
                         episode_eval_dict['state'].append(state_eval.tolist())
                         episode_eval_dict['action'].append(action_eval.tolist())
