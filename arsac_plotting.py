@@ -17,7 +17,7 @@ import seaborn as sns
 sns.set_palette('Paired')
 
 # comet
-api_key = 'tHDbEydFQGW7F1MWmIKlEvrly'
+api_key = ''
 workspace = 'aguerra'
 project_name = 'arsac'
 comet_api = API(api_key=api_key)
@@ -275,27 +275,27 @@ if __name__ == "__main__":
         env_exp_dict = exp_dict[env]
         print("Visualizing ", env)
         ######### Plotting the distributions ##########
-        #
-        # for inference_type in env_exp_dict:
-        #     print("  -", inference_type)
-        #     # For this, we will only plot a single experiment run to see how training proceeded.
-        #     experiment_id = env_exp_dict[inference_type][0]
-        #     if experiment_id == '':
-        #         continue
-        #     lb = inference_type[-1]
-        #     save_dir = base_dir + env + "/arsac" + lb + "/"  # Plain ARSAC algorithm, specified by lookback
-        #
-        #     # Create the directory if it does not already exist
-        #     Path(save_dir).mkdir(parents=True, exist_ok=True)
-        #
-        #     if isfile(save_dir + experiment_id + ".json"):
-        #         with open(save_dir + experiment_id + ".json") as f:
-        #             visual_dict = json.load(f)
-        #     else:
-        #         visual_dict = get_visual_dict_comet(experiment_id, save_json_dir=save_dir)
-        #
-        #     # Now we make the plots
-        #     plot_density_animation(visual_dict, save_dir)
+        
+        for inference_type in env_exp_dict:
+            print("  -", inference_type)
+            # For this, we will only plot a single experiment run to see how training proceeded.
+            experiment_id = env_exp_dict[inference_type][0]
+            if experiment_id == '':
+                continue
+            lb = inference_type[-1]
+            save_dir = base_dir + env + "/arsac" + lb + "/"  # Plain ARSAC algorithm, specified by lookback
+
+            # Create the directory if it does not already exist
+            Path(save_dir).mkdir(parents=True, exist_ok=True)
+
+            if isfile(save_dir + experiment_id + ".json"):
+                with open(save_dir + experiment_id + ".json") as f:
+                    visual_dict = json.load(f)
+            else:
+                visual_dict = get_visual_dict_comet(experiment_id, save_json_dir=save_dir)
+
+            # Now we make the plots
+            plot_density_animation(visual_dict, save_dir)
 
         #########    Plotting the rewards    ##########
 
