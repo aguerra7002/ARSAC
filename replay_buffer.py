@@ -10,6 +10,7 @@ class ReplayBuffer:
     def push(self, prev_states, prev_actions, state, action, reward, next_state, done):
         if len(self.buffer) < self.capacity:
             self.buffer.append(None)
+
         self.buffer[self.position] = (prev_states, prev_actions, state, action, reward, next_state, done)
         self.position = (self.position + 1) % self.capacity
 

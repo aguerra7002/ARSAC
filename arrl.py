@@ -51,7 +51,7 @@ class ARRL(object):
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
 
-    def select_action(self, state, prev_states=None, prev_actions=None, eval=False, return_distribution=False):
+    def select_action(self, state, prev_states=None, prev_actions=None, eval=False, return_distribution=False, random_base=False):
 
         state = torch.FloatTensor(state).to(self.device).unsqueeze(0)
 
@@ -71,9 +71,9 @@ class ARRL(object):
         else:
             if return_distribution:
                 _, _, action, bmean, bstd, ascle, ashft = self.policy.sample(state, prev_states, prev_actions,
-                                                                             return_distribution=True)
+                                                                             return_distribution=True, random_base=random_base)
             else:
-                _, _, action = self.policy.sample(state, prev_states, prev_actions)
+                _, _, action = self.policy.sample(state, prev_states, prev_actions, random_base=random_base)
 
         if return_distribution:
             return self.to_numpy(action), self.to_numpy(bmean), self.to_numpy(bstd), self.to_numpy(ascle), self.to_numpy(ashft)

@@ -275,7 +275,7 @@ if __name__ == "__main__":
         env_exp_dict = exp_dict[env]
         print("Visualizing ", env)
         ######### Plotting the distributions ##########
-        
+
         for inference_type in env_exp_dict:
             print("  -", inference_type)
             # For this, we will only plot a single experiment run to see how training proceeded.

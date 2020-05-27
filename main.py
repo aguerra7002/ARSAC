@@ -37,12 +37,14 @@ parser.add_argument('--ignore_scale', type=bool, default=False, metavar='G',
                     help='Causes normal autoregressive flow to only have a shift component')
 parser.add_argument('--use_prev_states', type=bool, default=False, metavar='G',
                     help='Determines whether or not to use previous states as well as actions')
-parser.add_argument('--action_lookback', type=int, default=5, metavar='G',
+parser.add_argument('--action_lookback', type=int, default=3, metavar='G',
                     help='Use phi network to de-correlate time dependence and state by using previous action(s)')
-parser.add_argument('--add_state_noise', type=bool, default=False, metavar='G',
+parser.add_argument('--add_state_noise', type=bool, default=True, metavar='G',
                     help='Adds a small amount of Gaussian noise to the state')
-parser.add_argument('--add_action_noise', type=bool, default=False, metavar='G',
+parser.add_argument('--add_action_noise', type=bool, default=True, metavar='G',
                     help='Adds a small amount of Gaussian noise to the actions')
+parser.add_argument('--random_base', type=bool, default=False, metavar='G',
+                    help='Uses a standard Gaussian for the base distribution during eval episodes.')
 #######################################################
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
@@ -56,7 +58,7 @@ parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
                     help='model updates per simulator step (default: 1)')
 parser.add_argument('--start_steps', type=int, default=10000, metavar='N',
                     help='Steps sampling random actions (default: 10000)')
-parser.add_argument('--eval_steps', type=int, default=5000, metavar='N',
+parser.add_argument('--eval_steps', type=int, default=10000, metavar='N',
                     help='Steps between each evaluation episode')
 parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
                     help='Value target update per no. of updates per step (default: 1)')
@@ -99,7 +101,7 @@ with experiment.train():
         episode_reward = 0
         episode_steps = 0
         done = False
-        state = env.reset() + np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0
+        state = env.reset() + (np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0)
         lookback = args.action_lookback
         # Reset the previous action, as our program factors this into account when taking future actions
         if lookback > 0:
@@ -131,7 +133,7 @@ with experiment.train():
 
                     updates += 1
 
-            action_noise = np.random.normal(0, 0.1, state_space_size) if args.add_action_noise else 0
+            action_noise = np.random.normal(0, 0.1, action_space_size) if args.add_action_noise else 0
             next_state, reward, done, _ = env.step(action + action_noise) # Step
             # Add state noise if that parameter is true
             next_state += np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0
@@ -163,7 +165,7 @@ with experiment.train():
                                      'base_mean': [], 'base_std': [], 'adj_scale': [], 'adj_shift': []}
 
                 for _ in range(episodes_eval):
-                    state_eval = env.reset() + np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0
+                    state_eval = env.reset() + (np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0)
                     if lookback > 0:
                         prev_actions_eval = np.zeros(action_space_size * lookback)
                         prev_states_eval = np.zeros(state_space_size * lookback)
@@ -175,7 +177,8 @@ with experiment.train():
                     while not done_eval:
                         # Sample action from policy, this time taking the mean action
                         action_eval, bmean, bstd, ascle, ashft = \
-                            agent.select_action(state_eval, prev_states_eval, prev_actions_eval, eval=True, return_distribution=True)
+                            agent.select_action(state_eval, prev_states_eval, prev_actions_eval,
+                                                eval=True, return_distribution=True, random_base=args.random_base)
 
                         if lookback > 0:
                             prev_actions_eval = np.concatenate((prev_actions_eval[action_space_size:], action_eval))
@@ -184,7 +187,7 @@ with experiment.train():
                         episode_eval_dict['qpos'].append(env.sim.get_state()[1].tolist()) # qpos
                         episode_eval_dict['qvel'].append(env.sim.get_state()[2].tolist()) # qvel
                         # Now we step forward in the environment by taking our action
-                        action_noise_eval = np.random.normal(0, 0.1, state_space_size) if args.add_action_noise else 0
+                        action_noise_eval = np.random.normal(0, 0.1, action_space_size) if args.add_action_noise else 0
                         next_state_eval, reward_eval, done_eval, _ = env.step(action_eval + action_noise_eval)
                         # Add state noise if that parameter is true
                         next_state_eval += np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0

@@ -66,11 +66,10 @@ class GaussianPolicy(nn.Module):
                 action_lookback=0, use_prev_states=False, use_gated_transform=False, ignore_scale=False ):
         super(GaussianPolicy, self).__init__()
         # Specifying the Theta Network (will map states to some latent space equal in dimension to action space)
-        self.linear_theta_1 = nn.Linear(num_inputs, hidden_dim)
-        self.linear_theta_2 = nn.Linear(hidden_dim, hidden_dim)
-
-        self.mean_linear_theta = nn.Linear(hidden_dim, num_actions)
-        self.log_std_linear_theta = nn.Linear(hidden_dim, num_actions)
+        self.linear_theta_1 = nn.Linear(num_inputs, 128) # HARD CODED FOR NOW, CHANGE IN FUTURE
+        #self.linear_theta_2 = nn.Linear(hidden_dim, hidden_dim)
+        self.mean_linear_theta = nn.Linear(128, num_actions)
+        self.log_std_linear_theta = nn.Linear(128, num_actions)
 
         # How far back we look with the phi network
         self.action_lookback = action_lookback
@@ -107,7 +106,7 @@ class GaussianPolicy(nn.Module):
 
     def forward_theta(self, state):
         x = F.relu(self.linear_theta_1(state))
-        x = F.relu(self.linear_theta_2(x))
+        #x = F.relu(self.linear_theta_2(x))
         mean = self.mean_linear_theta(x)
         log_std = self.log_std_linear_theta(x)
         log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX)
@@ -137,10 +136,14 @@ class GaussianPolicy(nn.Module):
             return shift, log_scale
 
 
-    def sample(self, state, prev_states, prev_actions, return_distribution=False):
+    def sample(self, state, prev_states, prev_actions, return_distribution=False, random_base=False):
         # First pass the state through the state network
         mean, log_std = self.forward_theta(state)
         std = log_std.exp()
+
+        if random_base:
+            mean = torch.zeros(mean.shape)
+            std = torch.ones(std.shape)
 
         # Sample from the base distribution first.
         base_dist = Normal(mean, std)
