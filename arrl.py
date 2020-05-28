@@ -40,7 +40,7 @@ class ARRL(object):
 
             self.policy = GaussianPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space,
                                         self.action_lookback, self.use_prev_states, self.use_gated_transform,
-                                        self.ignore_scale).to(self.device)
+                                        self.ignore_scale, args.hidden_dim_base).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
         else:

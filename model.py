@@ -63,13 +63,13 @@ class QNetwork(nn.Module):
 
 class GaussianPolicy(nn.Module):
     def __init__(self, num_inputs, num_actions, hidden_dim, action_space=None,
-                action_lookback=0, use_prev_states=False, use_gated_transform=False, ignore_scale=False ):
+                action_lookback=0, use_prev_states=False, use_gated_transform=False, ignore_scale=False, hidden_dim_base=256 ):
         super(GaussianPolicy, self).__init__()
         # Specifying the Theta Network (will map states to some latent space equal in dimension to action space)
-        self.linear_theta_1 = nn.Linear(num_inputs, 128) # HARD CODED FOR NOW, CHANGE IN FUTURE
-        #self.linear_theta_2 = nn.Linear(hidden_dim, hidden_dim)
-        self.mean_linear_theta = nn.Linear(128, num_actions)
-        self.log_std_linear_theta = nn.Linear(128, num_actions)
+        self.linear_theta_1 = nn.Linear(num_inputs, hidden_dim_base)
+        #self.linear_theta_2 = nn.Linear(hidden_dim, hidden_dim) # For 2 hidden layers; maybe make this an option later.
+        self.mean_linear_theta = nn.Linear(hidden_dim_base, num_actions)
+        self.log_std_linear_theta = nn.Linear(hidden_dim_base, num_actions)
 
         # How far back we look with the phi network
         self.action_lookback = action_lookback

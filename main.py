@@ -43,8 +43,12 @@ parser.add_argument('--add_state_noise', type=bool, default=True, metavar='G',
                     help='Adds a small amount of Gaussian noise to the state')
 parser.add_argument('--add_action_noise', type=bool, default=True, metavar='G',
                     help='Adds a small amount of Gaussian noise to the actions')
-parser.add_argument('--random_base', type=bool, default=False, metavar='G',
+parser.add_argument('--random_base_train', type=bool, default=True, metavar='G',
+                    help='Uses a standard Gaussian for the base distribution during training.')
+parser.add_argument('--random_base_eval', type=bool, default=True, metavar='G',
                     help='Uses a standard Gaussian for the base distribution during eval episodes.')
+parser.add_argument('--hidden_dim_base', type=int, default=32, metavar='G',
+                    help='Determines how many hidden units to use for the hidden layer of the state mapping')
 #######################################################
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
@@ -117,7 +121,7 @@ with experiment.train():
             else:
 
                 # Sample action from policy, adding noise to state if we want to
-                action = agent.select_action(state, prev_states, prev_actions)
+                action = agent.select_action(state, prev_states, prev_actions, random_base=args.random_base_train)
 
             if len(memory) > args.batch_size:
                 # Number of updates per step in environment
@@ -178,7 +182,7 @@ with experiment.train():
                         # Sample action from policy, this time taking the mean action
                         action_eval, bmean, bstd, ascle, ashft = \
                             agent.select_action(state_eval, prev_states_eval, prev_actions_eval,
-                                                eval=True, return_distribution=True, random_base=args.random_base)
+                                                eval=True, return_distribution=True, random_base=args.random_base_eval)
 
                         if lookback > 0:
                             prev_actions_eval = np.concatenate((prev_actions_eval[action_space_size:], action_eval))
