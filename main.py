@@ -39,13 +39,13 @@ parser.add_argument('--use_prev_states', type=bool, default=False, metavar='G',
                     help='Determines whether or not to use previous states as well as actions')
 parser.add_argument('--action_lookback', type=int, default=3, metavar='G',
                     help='Use phi network to de-correlate time dependence and state by using previous action(s)')
-parser.add_argument('--add_state_noise', type=bool, default=True, metavar='G',
+parser.add_argument('--add_state_noise', type=bool, default=False, metavar='G',
                     help='Adds a small amount of Gaussian noise to the state')
-parser.add_argument('--add_action_noise', type=bool, default=True, metavar='G',
+parser.add_argument('--add_action_noise', type=bool, default=False, metavar='G',
                     help='Adds a small amount of Gaussian noise to the actions')
-parser.add_argument('--random_base_train', type=bool, default=True, metavar='G',
+parser.add_argument('--random_base_train', type=bool, default=False, metavar='G',
                     help='Uses a standard Gaussian for the base distribution during training.')
-parser.add_argument('--random_base_eval', type=bool, default=True, metavar='G',
+parser.add_argument('--random_base_eval', type=bool, default=False, metavar='G',
                     help='Uses a standard Gaussian for the base distribution during eval episodes.')
 parser.add_argument('--hidden_dim_base', type=int, default=32, metavar='G',
                     help='Determines how many hidden units to use for the hidden layer of the state mapping')
