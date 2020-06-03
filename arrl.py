@@ -64,10 +64,10 @@ class ARRL(object):
             if return_distribution:
                 # We pick an action based off a gaussian policy to encourage the model to explore
                 action, _, _, bmean, bstd, ascle, ashft = self.policy.sample(state, prev_states, prev_actions,
-                                                                             return_distribution=True)
+                                                                             return_distribution=True, random_base=random_base)
             else:
                 # We pick an action based off a gaussian policy to encourage the model to explore
-                action, _, _ = self.policy.sample(state, prev_states, prev_actions)
+                action, _, _ = self.policy.sample(state, prev_states, prev_actions, random_base=random_base)
         else:
             if return_distribution:
                 _, _, action, bmean, bstd, ascle, ashft = self.policy.sample(state, prev_states, prev_actions,
