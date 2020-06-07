@@ -63,11 +63,13 @@ class QNetwork(nn.Module):
 
 class GaussianPolicy(nn.Module):
     def __init__(self, num_inputs, num_actions, hidden_dim, action_space=None,
-                action_lookback=0, use_prev_states=False, use_gated_transform=False, ignore_scale=False, hidden_dim_base=256 ):
+                action_lookback=0, use_prev_states=False, use_gated_transform=False, ignore_scale=False, hidden_dim_base=256):
         super(GaussianPolicy, self).__init__()
         # Specifying the Theta Network (will map states to some latent space equal in dimension to action space)
+        self.hidden_dim_base = hidden_dim_base
         self.linear_theta_1 = nn.Linear(num_inputs, hidden_dim_base)
-        #self.linear_theta_2 = nn.Linear(hidden_dim, hidden_dim) # For 2 hidden layers; maybe make this an option later.
+        if hidden_dim_base == 256:
+            self.linear_theta_2 = nn.Linear(hidden_dim_base, hidden_dim_base)
         self.mean_linear_theta = nn.Linear(hidden_dim_base, num_actions)
         self.log_std_linear_theta = nn.Linear(hidden_dim_base, num_actions)
 
@@ -106,7 +108,8 @@ class GaussianPolicy(nn.Module):
 
     def forward_theta(self, state):
         x = F.relu(self.linear_theta_1(state))
-        #x = F.relu(self.linear_theta_2(x))
+        if self.hidden_dim_base == 256:
+            x = F.relu(self.linear_theta_2(x))
         mean = self.mean_linear_theta(x)
         log_std = self.log_std_linear_theta(x)
         log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX)
