@@ -130,10 +130,10 @@ with experiment.train():
                     critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates)
 
                     # Log to Comet.ml
-                    experiment.log_metric("Critic_1_Loss", critic_1_loss, step=updates)
-                    experiment.log_metric("Critic_2_Loss", critic_2_loss, step=updates)
-                    experiment.log_metric("Policy_Loss", policy_loss, step=updates)
-                    experiment.log_metric("Entropy_Loss", ent_loss, step=updates)
+                    #experiment.log_metric("Critic_1_Loss", critic_1_loss, step=updates)
+                    #experiment.log_metric("Critic_2_Loss", critic_2_loss, step=updates)
+                    #experiment.log_metric("Policy_Loss", policy_loss, step=updates)
+                    #experiment.log_metric("Entropy_Loss", ent_loss, step=updates)
 
                     updates += 1
 

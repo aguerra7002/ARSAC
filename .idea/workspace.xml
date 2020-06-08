@@ -2,83 +2,16 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="e610cfdb-1b7c-4147-adee-e6898c22906f" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/arsac_plotting.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/models/HalfCheetah-v2_actor_0.model" beforeDir="false" afterPath="$PROJECT_DIR$/models/HalfCheetah-v2_actor_0.model" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/HalfCheetah-v2_actor_5.model" beforeDir="false" afterPath="$PROJECT_DIR$/models/HalfCheetah-v2_actor_5.model" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/models/HalfCheetah-v2_critic_0.model" beforeDir="false" afterPath="$PROJECT_DIR$/models/HalfCheetah-v2_critic_0.model" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/HalfCheetah-v2_critic_5.model" beforeDir="false" afterPath="$PROJECT_DIR$/models/HalfCheetah-v2_critic_5.model" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/HalfCheetah-v2_parser_args_5.txt" beforeDir="false" afterPath="$PROJECT_DIR$/models/HalfCheetah-v2_parser_args_5.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_16-49-24_ARRL_MountainCarContinuous-v0_Gaussian_/events.out.tfevents.1580172564.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_16-52-22_ARRL_MountainCarContinuous-v0_Gaussian_/events.out.tfevents.1580172742.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_17-18-37_ARRL_MountainCarContinuous-v0_Gaussian_/events.out.tfevents.1580174317.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_18-50-38_ARRL_MountainCarContinuous-v0_Gaussian_/events.out.tfevents.1580179838.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_18-52-10_ARRL_MountainCarContinuous-v0_Gaussian_/events.out.tfevents.1580179930.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_21-25-12_ARRL_MountainCarContinuous-v0_Gaussian_/events.out.tfevents.1580189112.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_22-21-22_ARRL_MountainCarContinuous-v0_Gaussian_/events.out.tfevents.1580192482.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_22-25-52_ARRL_Pendulum-v0_Gaussian_/events.out.tfevents.1580192752.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_22-39-07_ARRL_Pendulum-v0_Gaussian_/events.out.tfevents.1580193547.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_22-42-38_ARRL_Pendulum-v0_Gaussian_/events.out.tfevents.1580193758.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_22-49-59_ARRL_Pendulum-v0_Gaussian_/events.out.tfevents.1580194199.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_22-59-40_ARRL_Pendulum-v0_Gaussian_/events.out.tfevents.1580194780.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_23-00-39_ARRL_Pendulum-v0_Gaussian_/events.out.tfevents.1580194839.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_23-16-04_ARRL_Pendulum-v0_Gaussian_/events.out.tfevents.1580195764.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_23-22-41_ARRL_Pendulum-v0_Gaussian_/events.out.tfevents.1580196161.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_23-24-00_ARRL_Pendulum-v0_Gaussian_/events.out.tfevents.1580196240.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_23-30-12_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1580196612.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_23-38-33_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1580197113.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_23-51-46_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1580197906.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-27_23-54-38_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1580198078.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-28_03-38-07_ARRL_LunarLanderContinuous-v2_Gaussian_autotune/events.out.tfevents.1580211487.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-28_04-00-11_ARRL_LunarLanderContinuous-v2_Gaussian_autotune/events.out.tfevents.1580212811.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-28_10-22-32_ARRL_LunarLanderContinuous-v2_Gaussian_autotune/events.out.tfevents.1580235752.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-28_11-46-39_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1580240799.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-28_13-13-39_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1580246019.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-28_13-14-36_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1580246076.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-28_13-47-03_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1580248023.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-28_14-39-29_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1580251169.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-28_14-47-39_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1580251659.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-28_14-48-25_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1580251705.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-28_14-51-24_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1580251884.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-28_14-51-43_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1580251903.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-28_14-53-23_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1580252003.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-01-28_14-54-04_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1580252044.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_01-02-35_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582275755.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_01-07-19_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582276039.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_04-46-54_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582289214.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_04-48-29_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582289309.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_04-51-06_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582289466.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_05-07-49_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582290469.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_05-09-40_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582290580.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_05-10-24_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582290624.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_05-12-06_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582290726.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_05-15-12_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582290912.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_05-17-08_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582291028.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_05-19-36_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582291176.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_05-21-21_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582291281.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_05-22-04_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582291324.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_05-33-56_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582292036.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_05-35-42_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582292142.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_05-38-41_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582292321.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_05-39-03_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582292343.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_05-39-17_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582292357.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_05-42-18_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582292538.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_05-51-30_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582293090.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_05-53-53_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582293233.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-21_05-54-41_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582293281.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-24_00-14-02_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582532042.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-24_00-21-10_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582532470.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-24_00-25-37_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582532737.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-24_00-34-58_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582533298.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-24_02-07-05_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582538825.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-24_02-08-02_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582538882.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-24_03-22-28_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582543348.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-24_04-36-10_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582547770.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/2020-02-24_04-36-41_ARRL_LunarLanderContinuous-v2_Gaussian_/events.out.tfevents.1582547801.LAPTOP-IV7U9SMA" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vid/openaigym.episode_batch.0.19808.stats.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vid/openaigym.manifest.0.19808.manifest.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vid/openaigym.video.0.19808.video000000.meta.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/HalfCheetah-v2_parser_args_0.txt" beforeDir="false" afterPath="$PROJECT_DIR$/models/HalfCheetah-v2_parser_args_0.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/HalfCheetah-v2_parser_args_3.txt" beforeDir="false" afterPath="$PROJECT_DIR$/models/HalfCheetah-v2_parser_args_3.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/paper_plots.py" beforeDir="false" afterPath="$PROJECT_DIR$/paper_plots.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/visualizations/Hopper-v2/arsac0/density_animation.gif" beforeDir="false" afterPath="$PROJECT_DIR$/visualizations/Hopper-v2/arsac0/density_animation.gif" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/visualizations/Hopper-v2/arsac1/density_animation.gif" beforeDir="false" afterPath="$PROJECT_DIR$/visualizations/Hopper-v2/arsac1/density_animation.gif" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/visualizations/Hopper-v2/arsac3/density_animation.gif" beforeDir="false" afterPath="$PROJECT_DIR$/visualizations/Hopper-v2/arsac3/density_animation.gif" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -103,6 +36,9 @@
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
   </component>
   <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\alexg\Documents\Caltech\Research\ARRL\visualizations\HalfCheetah-v2" />
+    </key>
     <key name="CopyFile.RECENT_KEYS">
       <recent name="C:\Users\alexg\Downloads" />
     </key>
@@ -119,7 +55,28 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.arsac_plotting">
+  <component name="RunManager" selected="Python.paper_plots">
+    <configuration name="ar_visualization" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <module name="Research" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/ar_visualization.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="arsac_plotting" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="Research" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -183,10 +140,33 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="paper_plots" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <module name="Research" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/paper_plots.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.arsac_plotting" />
+        <item itemvalue="Python.paper_plots" />
+        <item itemvalue="Python.ar_visualization" />
         <item itemvalue="Python.main" />
+        <item itemvalue="Python.arsac_plotting" />
         <item itemvalue="Python.comet_test" />
       </list>
     </recent_temporary>
