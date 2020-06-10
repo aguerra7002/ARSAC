@@ -2,16 +2,23 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="e610cfdb-1b7c-4147-adee-e6898c22906f" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/log_scale_plots.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/HalfCheetah-v2_actor_0.model" beforeDir="false" afterPath="$PROJECT_DIR$/models/HalfCheetah-v2_actor_0.model" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/HalfCheetah-v2_critic_0.model" beforeDir="false" afterPath="$PROJECT_DIR$/models/HalfCheetah-v2_critic_0.model" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/HalfCheetah-v2_parser_args_0.txt" beforeDir="false" afterPath="$PROJECT_DIR$/models/HalfCheetah-v2_parser_args_0.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/HalfCheetah-v2_parser_args_3.txt" beforeDir="false" afterPath="$PROJECT_DIR$/models/HalfCheetah-v2_parser_args_3.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/paper_plots.py" beforeDir="false" afterPath="$PROJECT_DIR$/paper_plots.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/visualizations/Hopper-v2/arsac0/density_animation.gif" beforeDir="false" afterPath="$PROJECT_DIR$/visualizations/Hopper-v2/arsac0/density_animation.gif" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/visualizations/Hopper-v2/arsac1/density_animation.gif" beforeDir="false" afterPath="$PROJECT_DIR$/visualizations/Hopper-v2/arsac1/density_animation.gif" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/visualizations/Hopper-v2/arsac3/density_animation.gif" beforeDir="false" afterPath="$PROJECT_DIR$/visualizations/Hopper-v2/arsac3/density_animation.gif" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ar_visual/ar_plot_100_dim_0.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ar_visual/ar_plot_100_dim_1.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ar_visual/ar_plot_100_dim_2.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ar_visual/ar_plot_100_dim_3.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ar_visual/ar_plot_100_dim_4.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ar_visual/ar_plot_100_dim_5.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ar_visualization.py" beforeDir="false" afterPath="$PROJECT_DIR$/ar_visualization.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/arsac_plotting.py" beforeDir="false" afterPath="$PROJECT_DIR$/arsac_plotting.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/paper_plots.py" beforeDir="false" afterPath="$PROJECT_DIR$/reward_plots.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/paper_plots/HalfCheetah-v2_ARSAC_rewards.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/paper_plots/HalfCheetah-v2_SAC_rewards.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/paper_plots/Hopper-v2_ARSAC_rewards.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/paper_plots/Hopper-v2_SAC_rewards.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/paper_plots/Walker2d-v2_ARSAC_rewards.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/paper_plots/Walker2d-v2_SAC_rewards.png" beforeDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -55,7 +62,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.paper_plots">
+  <component name="RunManager" selected="Python.reward_plots">
     <configuration name="ar_visualization" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="Research" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -77,7 +84,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="arsac_plotting" type="PythonConfigurationType" factoryName="Python" temporary="true">
+    <configuration name="log_scale_plots" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="Research" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -89,28 +96,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/arsac_plotting.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="comet_test" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <module name="Research" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/comet_test.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/log_scale_plots.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -152,7 +138,28 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/paper_plots.py" />
+      <option name="SCRIPT_NAME" value="C:\Users\alexg\Documents\Caltech\Research\ARRL\reward_plots.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="reward_plots" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <module name="Research" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/reward_plots.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -163,11 +170,11 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.paper_plots" />
+        <item itemvalue="Python.reward_plots" />
+        <item itemvalue="Python.log_scale_plots" />
         <item itemvalue="Python.ar_visualization" />
+        <item itemvalue="Python.paper_plots" />
         <item itemvalue="Python.main" />
-        <item itemvalue="Python.arsac_plotting" />
-        <item itemvalue="Python.comet_test" />
       </list>
     </recent_temporary>
   </component>

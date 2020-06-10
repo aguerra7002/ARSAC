@@ -151,7 +151,7 @@ def plot_rewards(env_exp_dict, save_folder):
     plt.xlabel('Steps x1000', fontsize=15)
     plt.ylabel('Cumulative Reward', fontsize=15)
     plt.title(env, fontsize=20)
-    plt.savefig(save_folder + 'rewards.png')
+    plt.savefig(save_folder + 'rewards.pdf')
     plt.clf()
 
 
