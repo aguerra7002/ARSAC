@@ -112,13 +112,16 @@ hopper_dict = {"Hidden_Dim 1x32": ['8c8cc4849f9d4176a11b674dfd3757c9',  # 4
                                     'f8d3661c1bc84e728dfdf83ac5b8770f',  # 6
                                     'e72b115236594b92a7f47328909fd5e3']}  # 7
 
+long_dict = {"Hidden Dim 1x128": ['8e7f178b3f1045288b7997b1ddfe599b']}
+
 if __name__ == "__main__":
 
     # This makes the plot showing how log(scale) changes over all eval episodes
-    make_log_scale_plots(halfcheetah_dict, "Half Cheetah")
-    make_log_scale_plots(walker_dict, "Walker")
-    make_log_scale_plots(hopper_dict, "Hopper")
+    # make_log_scale_plots(halfcheetah_dict, "Half Cheetah")
+    # make_log_scale_plots(walker_dict, "Walker")
+    # make_log_scale_plots(hopper_dict, "Hopper")
     #make_log_scale_plots(ant_dict, "Ant")
+    make_log_scale_plots(long_dict, "Hopper more epochs")
 
 
 

@@ -18,6 +18,8 @@ class ARRL(object):
         self.ignore_scale = args.ignore_scale
         self.use_prev_states = args.use_prev_states
         self.use_gated_transform = args.use_gated_transform
+        self.lambda_reg = args.lambda_reg
+        self.use_l2_reg = args.use_l2_reg
 
         self.policy_type = args.policy
         self.target_update_interval = args.target_update_interval
@@ -134,6 +136,8 @@ class ARRL(object):
         min_qf_pi = torch.min(qf1_pi, qf2_pi)
 
         policy_loss = ((self.alpha * log_pi) - min_qf_pi).mean()  # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
+        # Add in regularization to policy here.
+        policy_loss += self.policy.get_reg_loss(lambda_reg=self.lambda_reg, use_l2_reg=self.use_l2_reg)
 
         self.critic_optim.zero_grad()
         qf1_loss.backward()

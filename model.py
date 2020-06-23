@@ -63,7 +63,8 @@ class QNetwork(nn.Module):
 
 class GaussianPolicy(nn.Module):
     def __init__(self, num_inputs, num_actions, hidden_dim, action_space=None,
-                action_lookback=0, use_prev_states=False, use_gated_transform=False, ignore_scale=False, hidden_dim_base=256):
+                 action_lookback=0, use_prev_states=False, use_gated_transform=False, ignore_scale=False,
+                 hidden_dim_base=256):
         super(GaussianPolicy, self).__init__()
         # Specifying the Theta Network (will map states to some latent space equal in dimension to action space)
         self.hidden_dim_base = hidden_dim_base
@@ -106,6 +107,21 @@ class GaussianPolicy(nn.Module):
             self.action_bias = torch.FloatTensor(
                 (action_space.high + action_space.low) / 2.)
 
+    # Tracks the l1 or l2 loss
+    def get_reg_loss(self, lambda_reg=0.0, use_l2_reg=False):
+        reg_loss = 0
+        norm_type = 'fro' if use_l2_reg else 'nuc'
+        for param in self.linear_theta_1.parameters():
+            reg_loss += torch.norm(param, p=norm_type)
+        for param in self.mean_linear_theta.parameters():
+            reg_loss += torch.norm(param, p=norm_type)
+        for param in self.log_std_linear_theta.parameters():
+            reg_loss += torch.norm(param, p=norm_type)
+        if self.hidden_dim_base == 256:
+            for param in self.linear_theta_2:
+                reg_loss += torch.norm(param, p=norm_type)
+        return reg_loss * lambda_reg
+
     def forward_theta(self, state):
         x = F.relu(self.linear_theta_1(state))
         if self.hidden_dim_base == 256:
@@ -137,7 +153,6 @@ class GaussianPolicy(nn.Module):
             log_scale = self.log_scale_linear_phi(x)
             log_scale = torch.clamp(log_scale, min=LOG_SIG_MIN, max=LOG_SIG_MAX) # Ensures that the scale factor is > 0
             return shift, log_scale
-
 
     def sample(self, state, prev_states, prev_actions, return_distribution=False, random_base=False):
         # First pass the state through the state network

@@ -45,10 +45,10 @@ def get_returns(experiment):
     returns_asset_list = experiment.get_metrics('train_Avg. Episode_Reward')
     returns = [float(a['metricValue']) for a in returns_asset_list]
     steps = np.array([float(a['step']) for a in returns_asset_list])
-    # Jenky fix for old arsac tests
-    if len(returns) > 100:
-        returns = returns[1::2]
-        steps = np.array(range(len(returns))) * 1e3
+    # # Jenky fix for old arsac tests
+    # if len(returns) > 100:
+    #     returns = returns[1::2]
+    #     steps = np.array(range(len(returns))) * 1e3
     return np.array(returns), steps / 1e3
 
 
@@ -191,31 +191,35 @@ walker_sac_dict = {"SAC (1x32)" : ['7df24994ed8e49caa2387590f8078b88', # 4
                      #                       'c402c66ad0454f5ab45936dd7b5923db', # 6
                      #                       'caea315ef9f7486ea29ece089e2038e0']} # 7
 # Ant with normal SAC
-ant_sac_dict = {"SAC (1x32)" : ['27e9eb4c2caa4830a7485ed7fbe5c3c0',
-                                     '7266a1ddb85c4cab9ac5f04b56d74fb4',
-                                     '0d45d38335684e86b2f1b09894ab23e3'],
-                "SAC (1x128)" : ['6d9c925bc23c4953b432b3108fab8005',
-                                      '9d7ced7642874b07854b8d83833ab246',
-                                      'a3db6861354e4456a9f5cad99773eee0'],
-                "SAC (2x256)" : ['',
-                                      '',
-                                      ''],
-                "ARSAC (1x32)" : ['',
-                                       '',
-                                       ''],
-                "ARSAC (1x128)" : ['',
-                                        '',
-                                        '']}
+ant_sac_dict = {"SAC (1x32)" : ['826e53dbaf2e440daeab39e2960c8107',
+                                     'a9f411d5777f40ccbe2fcf8dda73dee4',
+                                     '013bd766d019463e86e7969054f437c8',
+                                '3af76a80a3bf405b946f52035058be87'],
+                "SAC (1x128)" : ['7cb642106ffb4d7b83d9a693a90e6316',
+                                      '059961b74bf346eb9c04726eb0ab5f9e',
+                                      '58d1fa05ce6349a8aeab669fe58b3f29',
+                                 'fd4296d0f8074164bdf0ce10bea521b9'],
+                "SAC (2x256)" : ['607e993a4259458b9846593c838d84e1',
+                                      '6b5404bc3299499d9ba331cf2bad32b7',
+                                      'b498a149d8754294a5f510b151d40e85',
+                                 '41cb97ae2e6d4eb59cd936cb801556e9'],
+                "ARSAC (1x32)" : ['09dfd4bb189646a3bc4294851d274510',
+                                       '9641b2394bb041468843de435e868635',
+                                       '1b6015332168429c938515e22adebd14',
+                                  '8c24d64f57ac436a86231e31006dc926'],
+                "ARSAC (1x128)" : ['c47e13563a9c47febd90e6b561fd7185',
+                                        '9c3459b21fb0478e93be72553c527957',
+                                        'db1ab8cd82754f7e85fa9afd59754c26',
+                                   'd3330aac74af441bbe3d33506040475e']}
                 # "ARSAC (2x256)" : ['',
                 #                         '',
                 #                         '']}
 
 to_plot_dict = {
-        "Hopper-v2" : hopper_sac_dict,
-        "HalfCheetah" : halfcheetah_sac_dict,
-        "Walker2d" : walker_sac_dict,
-        #"Ant-v2 w/ SAC" : ant_sac_dict,
-        #"Ant-v2 w/ ARSAC" : ant_arsac_dict,
+        # "Hopper-v2" : hopper_sac_dict,
+        # "HalfCheetah" : halfcheetah_sac_dict,
+        # "Walker2d" : walker_sac_dict,
+        "Ant" : ant_sac_dict
     }
 
 if __name__ == "__main__":
