@@ -49,7 +49,7 @@ parser.add_argument('--random_base_eval', type=bool, default=True, metavar='G',
                     help='Uses a standard Gaussian for the base distribution during eval episodes.')
 parser.add_argument('--hidden_dim_base', type=int, default=32, metavar='G',
                     help='Determines how many hidden units to use for the hidden layer of the state mapping')
-parser.add_argument('--lambda_reg', type=float, default=0.0001, metavar='G',
+parser.add_argument('--lambda_reg', type=float, default=0.0, metavar='G',
                     help='How much l1 regularization to use in base network.')
 parser.add_argument('--use_l2_reg', type=bool, default=True, metavar='G',
                     help="Uses l2 regularization on state-action policy if true, otherwise uses l1 regularization")
