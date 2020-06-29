@@ -20,6 +20,7 @@ class ARRL(object):
         self.use_gated_transform = args.use_gated_transform
         self.lambda_reg = args.lambda_reg
         self.use_l2_reg = args.use_l2_reg
+        self.restrict_base_output = args.restrict_base_output
 
         self.policy_type = args.policy
         self.target_update_interval = args.target_update_interval
@@ -130,7 +131,8 @@ class ARRL(object):
 
         qf1_loss = F.mse_loss(qf1, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
         qf2_loss = F.mse_loss(qf2, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
-        pi, log_pi, _ = self.policy.sample(state_batch, prev_state_batch, prev_action_batch)
+        pi, log_pi, _, policy_mean, policy_std, _, _ = \
+            self.policy.sample(state_batch, prev_state_batch, prev_action_batch, return_distribution=True)
 
         qf1_pi, qf2_pi = self.critic(state_batch, pi)
         min_qf_pi = torch.min(qf1_pi, qf2_pi)
@@ -138,6 +140,12 @@ class ARRL(object):
         policy_loss = ((self.alpha * log_pi) - min_qf_pi).mean()  # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
         # Add in regularization to policy here.
         policy_loss += self.policy.get_reg_loss(lambda_reg=self.lambda_reg, use_l2_reg=self.use_l2_reg)
+
+        # Add loss if we choose to restrict the output of the network
+        if self.restrict_base_output > 0.0:
+            norm_type = 'fro' if self.use_l2_reg else 'nuc'
+            norms = torch.norm(policy_mean, p=norm_type) + torch.norm(policy_std.log(), p=norm_type)
+            policy_loss += norms * self.restrict_base_output
 
         self.critic_optim.zero_grad()
         qf1_loss.backward()

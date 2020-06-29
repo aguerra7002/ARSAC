@@ -109,17 +109,25 @@ class GaussianPolicy(nn.Module):
 
     # Tracks the l1 or l2 loss
     def get_reg_loss(self, lambda_reg=0.0, use_l2_reg=False):
+        # Don't waste time if no regularization
+        if lambda_reg == 0.0:
+            return 0
+
         reg_loss = 0
         norm_type = 'fro' if use_l2_reg else 'nuc'
-        for param in self.linear_theta_1.parameters():
-            reg_loss += torch.norm(param, p=norm_type)
-        for param in self.mean_linear_theta.parameters():
-            reg_loss += torch.norm(param, p=norm_type)
-        for param in self.log_std_linear_theta.parameters():
-            reg_loss += torch.norm(param, p=norm_type)
-        if self.hidden_dim_base == 256:
-            for param in self.linear_theta_2:
+        for name, param in self.linear_theta_1.named_parameters():
+            if 'weight' in name:
                 reg_loss += torch.norm(param, p=norm_type)
+        for name, param in self.mean_linear_theta.named_parameters():
+            if 'weight' in name:
+                reg_loss += torch.norm(param, p=norm_type)
+        for name, param in self.log_std_linear_theta.named_parameters():
+            if 'weight' in name:
+                reg_loss += torch.norm(param, p=norm_type)
+        if self.hidden_dim_base == 256:
+            for name, param in self.linear_theta_2.named_parameters():
+                if 'weight' in name:
+                    reg_loss += torch.norm(param, p=norm_type)
         return reg_loss * lambda_reg
 
     def forward_theta(self, state):

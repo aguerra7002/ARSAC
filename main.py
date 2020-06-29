@@ -12,11 +12,10 @@ from pylint.test.functional import return_in_init
 from tensorboardX import SummaryWriter
 from replay_buffer import ReplayBuffer
 
-
 parser = argparse.ArgumentParser(description='PyTorch AutoRegressiveFlows-RL Args')
 # Once we get Mujoco then we will use this one
 parser.add_argument('--env-name', default="HalfCheetah-v2",
-                     help='Mujoco Gym environment (default: HalfCheetah-v2)')
+                    help='Mujoco Gym environment (default: HalfCheetah-v2)')
 parser.add_argument('--policy', default="Gaussian",
                     help='Policy Type: Gaussian | Deterministic (default: Gaussian)')
 parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
@@ -37,22 +36,26 @@ parser.add_argument('--ignore_scale', type=bool, default=False, metavar='G',
                     help='Causes normal autoregressive flow to only have a shift component')
 parser.add_argument('--use_prev_states', type=bool, default=False, metavar='G',
                     help='Determines whether or not to use previous states as well as actions')
-parser.add_argument('--action_lookback', type=int, default=3, metavar='G',
+parser.add_argument('--action_lookback', type=int, default=10, metavar='G',
                     help='Use phi network to de-correlate time dependence and state by using previous action(s)')
 parser.add_argument('--add_state_noise', type=bool, default=False, metavar='G',
                     help='Adds a small amount of Gaussian noise to the state')
 parser.add_argument('--add_action_noise', type=bool, default=False, metavar='G',
                     help='Adds a small amount of Gaussian noise to the actions')
-parser.add_argument('--random_base_train', type=bool, default=True, metavar='G',
+parser.add_argument('--random_base_train', type=bool, default=False, metavar='G',
                     help='Uses a standard Gaussian for the base distribution during training.')
-parser.add_argument('--random_base_eval', type=bool, default=True, metavar='G',
+parser.add_argument('--random_base_eval', type=bool, default=False, metavar='G',
                     help='Uses a standard Gaussian for the base distribution during eval episodes.')
 parser.add_argument('--hidden_dim_base', type=int, default=32, metavar='G',
                     help='Determines how many hidden units to use for the hidden layer of the state mapping')
 parser.add_argument('--lambda_reg', type=float, default=0.0, metavar='G',
-                    help='How much l1 regularization to use in base network.')
+                    help='How much regularization to use in base network.')
 parser.add_argument('--use_l2_reg', type=bool, default=True, metavar='G',
                     help="Uses l2 regularization on state-action policy if true, otherwise uses l1 regularization")
+parser.add_argument('--restrict_base_output', type=float, default=0.0001, metavar='G',
+                    help="Restricts output of base network by adding loss based on norm of network output")
+parser.add_argument('--position_only', type=bool, default=True, metavar='G',
+                    help="Determines whether or not we only use the Mujoco positions versus the entire state")
 #######################################################
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
@@ -85,10 +88,29 @@ torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 env.seed(args.seed)
 action_space_size = env.action_space.sample().shape[0]
-state_space_size = env.reset().shape[0]
+state_space_size = env.sim.get_state().qpos.shape[0] if args.position_only else env.reset().shape[0]
+
+
+# Function for getting the state we will use for training. If temp_state is not provided, will reset environment
+def get_state(temp_state=None):
+    if temp_state is None:
+        if args.position_only:
+            env.reset()
+            ret = env.sim.get_state().qpos  # Just the position
+        else:
+            ret = env.reset()  # The entire state
+    else:
+        if args.position_only:
+            ret = env.sim.get_state().qpos
+        else:
+            ret = temp_state
+
+    # Return the state, adding noise if args say we should
+    return ret + (np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0)
+
 
 # Agent
-agent = ARRL(env.observation_space.shape[0], env.action_space, args)
+agent = ARRL(state_space_size, env.action_space, args)
 
 # Comet logging
 experiment = Experiment(api_key="tHDbEydFQGW7F1MWmIKlEvrly",
@@ -109,7 +131,7 @@ with experiment.train():
         episode_reward = 0
         episode_steps = 0
         done = False
-        state = env.reset() + (np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0)
+        state = get_state(temp_state=None)
         lookback = args.action_lookback
         # Reset the previous action, as our program factors this into account when taking future actions
         if lookback > 0:
@@ -131,18 +153,23 @@ with experiment.train():
                 # Number of updates per step in environment
                 for i in range(args.updates_per_step):
                     # Update parameters of all the networks
-                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates)
+                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory,
+                                                                                                         args.batch_size,
+                                                                                                         updates)
 
                     # Log to Comet.ml
-                    #experiment.log_metric("Critic_1_Loss", critic_1_loss, step=updates)
-                    #experiment.log_metric("Critic_2_Loss", critic_2_loss, step=updates)
-                    #experiment.log_metric("Policy_Loss", policy_loss, step=updates)
-                    #experiment.log_metric("Entropy_Loss", ent_loss, step=updates)
+                    # experiment.log_metric("Critic_1_Loss", critic_1_loss, step=updates)
+                    # experiment.log_metric("Critic_2_Loss", critic_2_loss, step=updates)
+                    # experiment.log_metric("Policy_Loss", policy_loss, step=updates)
+                    # experiment.log_metric("Entropy_Loss", ent_loss, step=updates)
 
                     updates += 1
 
             action_noise = np.random.normal(0, 0.1, action_space_size) if args.add_action_noise else 0
-            next_state, reward, done, _ = env.step(action + action_noise) # Step
+            # Take a step in the environment. Note, we get the next state in the following line in case we only want pos
+            tmp_st, reward, done, _ = env.step(action + action_noise)  # Step
+            next_state = get_state(temp_state=tmp_st)
+
             # Add state noise if that parameter is true
             next_state += np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0
             episode_steps += 1
@@ -162,18 +189,18 @@ with experiment.train():
             state = next_state
 
             # # Do an eval episode every <eval_steps> steps
-            if total_numsteps % args.eval_steps == 0: #and total_numsteps >= args.start_steps:
+            if total_numsteps % args.eval_steps == 0:  # and total_numsteps >= args.start_steps:
                 # Save the environment state of the run we were just doing.
                 temp_state = env.sim.get_state()
                 avg_reward_eval = 0.
-                episodes_eval = 1 # Only do 1 episode for each evaluation. If you do more will screw up logging.
+                episodes_eval = 1  # Only do 1 episode for each evaluation. If you do more will screw up logging.
 
                 # This dictionary will be useful for logging to Comet.
                 episode_eval_dict = {'state': [], 'action': [], 'reward': [], 'qpos': [], 'qvel': [],
                                      'base_mean': [], 'base_std': [], 'adj_scale': [], 'adj_shift': []}
 
                 for _ in range(episodes_eval):
-                    state_eval = env.reset() + (np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0)
+                    state_eval = get_state(temp_state=None)
                     if lookback > 0:
                         prev_actions_eval = np.zeros(action_space_size * lookback)
                         prev_states_eval = np.zeros(state_space_size * lookback)
@@ -192,22 +219,23 @@ with experiment.train():
                             prev_actions_eval = np.concatenate((prev_actions_eval[action_space_size:], action_eval))
                             prev_states_eval = np.concatenate((prev_states_eval[state_space_size:], state_eval))
                         # Before we step in the environment, save the Mujoco state (qpos and qvel)
-                        #episode_eval_dict['qpos'].append(env.sim.get_state()[1].tolist()) # qpos
-                        #episode_eval_dict['qvel'].append(env.sim.get_state()[2].tolist()) # qvel
+                        # episode_eval_dict['qpos'].append(env.sim.get_state()[1].tolist()) # qpos
+                        # episode_eval_dict['qvel'].append(env.sim.get_state()[2].tolist()) # qvel
                         # Now we step forward in the environment by taking our action
                         action_noise_eval = np.random.normal(0, 0.1, action_space_size) if args.add_action_noise else 0
-                        next_state_eval, reward_eval, done_eval, _ = env.step(action_eval + action_noise_eval)
+                        tmp_st_eval, reward_eval, done_eval, _ = env.step(action_eval + action_noise_eval)
+                        next_state_eval = get_state(temp_state=tmp_st_eval)
                         # Add state noise if that parameter is true
                         next_state_eval += np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0
                         # We have completed an evaluation step, now log it to the dictionary
-                        #episode_eval_dict['state'].append(state_eval.tolist())
-                        #episode_eval_dict['action'].append(action_eval.tolist())
+                        # episode_eval_dict['state'].append(state_eval.tolist())
+                        # episode_eval_dict['action'].append(action_eval.tolist())
                         episode_eval_dict['reward'].append(reward_eval.tolist())
                         # Also add stats about the output of our neural networks:
-                        #episode_eval_dict['base_mean'].append(bmean.tolist())
-                        #episode_eval_dict['base_std'].append(bstd.tolist())
-                        #episode_eval_dict['adj_scale'].append(ascle.tolist())
-                        #episode_eval_dict['adj_shift'].append(ashft.tolist())
+                        # episode_eval_dict['base_mean'].append(bmean.tolist())
+                        # episode_eval_dict['base_std'].append(bstd.tolist())
+                        # episode_eval_dict['adj_scale'].append(ascle.tolist())
+                        # episode_eval_dict['adj_shift'].append(ashft.tolist())
 
                         # Move to the next state
                         state_eval = next_state_eval
@@ -220,7 +248,8 @@ with experiment.train():
                 avg_reward_eval /= episodes_eval
 
                 # Log the eval reward to Comet-ML
-                experiment.log_metric("Avg. Episode_Reward", avg_reward_eval, step=int(total_numsteps / args.eval_steps))
+                experiment.log_metric("Avg. Episode_Reward", avg_reward_eval,
+                                      step=int(total_numsteps / args.eval_steps))
 
                 # Log the episode reward to Comet.ml
                 for item_str in episode_eval_dict.keys():
@@ -229,9 +258,9 @@ with experiment.train():
                     item_name = 'episode_step_' + str(total_numsteps) + "_" + item_str
                     experiment.log_asset_data(item, name=item_name, step=int(total_numsteps / args.eval_steps))
 
-                #print("----------------------------------------")
-                #print("Test Episodes: {}, Avg. Reward: {}".format(episodes_eval, round(avg_reward_eval, 2)))
-                #print("----------------------------------------")
+                # print("----------------------------------------")
+                # print("Test Episodes: {}, Avg. Reward: {}".format(episodes_eval, round(avg_reward_eval, 2)))
+                # print("----------------------------------------")
 
                 # Now we are done evaluating. Before we leave, we have to set the state properly.
                 env.sim.set_state(temp_state)
@@ -243,17 +272,16 @@ with experiment.train():
         # Log to comet.ml
         experiment.log_metric("Epsiode_Reward", episode_reward, step=i_episode)
         # Log to console
-        #print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps,
+        # print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps,
         #                                                                              episode_steps,
         #                                                                              round(episode_reward, 2)))
 
         if stop_training:
             break
 
-
 # Save the final model before finishing program
 agent.save_model(args.env_name,
-                         actor_path="models/" + args.env_name + "_actor_" + str(lookback) + ".model",
-                         critic_path="models/" + args.env_name + "_critic_" + str(lookback) + ".model")
+                 actor_path="models/" + args.env_name + "_actor_" + str(lookback) + ".model",
+                 critic_path="models/" + args.env_name + "_critic_" + str(lookback) + ".model")
 
 env.close()
