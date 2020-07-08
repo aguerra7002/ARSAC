@@ -80,7 +80,7 @@ def make_ar_component_visualization(arsac_visual_dict, steps_to_plot, start_rang
 
         for dim in range(len(base_mean[0])):
 
-            title = "Half-Cheetah, Hidden Dimension 1x32, Eval episode: " + eval_ep_str
+            title = "Walker, Hidden Dimension 1x32, Eval episode: " + eval_ep_str
 
             fig, axs = plt.subplots(2)
             fig.suptitle(title)
@@ -123,7 +123,7 @@ def make_ar_component_visualization(arsac_visual_dict, steps_to_plot, start_rang
 
 if __name__ == "__main__":
 
-    arsac_experiment_id = '3e8aaf6c413a4e09a9e0139a68e6d570'  # Half-Cheetah, al=3, hdb=32, seed 1
+    arsac_experiment_id = '05a889ee01244ab6bab7817efa51dea0' # 'a9678b73bd0547a2b490eaa3d59d712b'
 
     # Get the experiment from comet
     arsac_experiment = comet_api.get_experiment(project_name=project_name,
@@ -131,14 +131,14 @@ if __name__ == "__main__":
                                                 experiment=arsac_experiment_id)
 
     # eval episodes to plot (Note: subtract 1 and multiply be 10000  to get step the eval episode occurred at)
-    steps_to_plot = [990000]
+    steps_to_plot = [4990000]
 
     # Get the dictionary of the data from Comet
     arsac_visual_dict = get_visual_dict(steps_to_plot, arsac_experiment)
 
     # Which steps of the episode we will plot
     start_range = 0
-    end_range = 50
+    end_range = 200
 
     # This makes the visualization of the autoregressive component over some range of steps in eval episodes
     make_ar_component_visualization(arsac_visual_dict, steps_to_plot, start_range, end_range)

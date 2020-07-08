@@ -13,7 +13,7 @@ sns.set_palette('Paired')
 # comet
 api_key = 'tHDbEydFQGW7F1MWmIKlEvrly'
 workspace = 'aguerra'
-project_name = 'arsac'
+project_name = 'arsac-test'
 comet_api = API(api_key=api_key)
 
 # savgol filter
@@ -104,7 +104,8 @@ def plot_rewards(env_exp_dict, save_folder):
             else:
                 plot_mean_std(mean, std, inference_type)
         elif len(returns_list) == 1:
-            plt.plot(steps, savgol_filter(returns_list[0], WINDOW, POLY_DEG), label=inference_type)
+            print(len(returns_list))
+            plt.plot(savgol_filter(returns_list[0], WINDOW, POLY_DEG), label=inference_type)
     plt.legend(fontsize=12)
     #plt.xlabel(r'Steps $\times 1,000$', fontsize=15)
     plt.xlabel('Eval Episode', fontsize=15)
@@ -215,12 +216,16 @@ ant_sac_dict = {"SAC (1x32)" : ['826e53dbaf2e440daeab39e2960c8107',
                 #                         '',
                 #                         '']}
 
+temp_dict = {"ARSAC (1 x 32)" : ['87e45a7a2bea4a0497021bfd692ec6c3']}
+
 to_plot_dict = {
         # "Hopper-v2" : hopper_sac_dict,
         # "HalfCheetah" : halfcheetah_sac_dict,
         # "Walker2d" : walker_sac_dict,
-        "Ant" : ant_sac_dict
+        # "Ant" : ant_sac_dict
+        "87e45a7a2bea4a0497021bfd692ec6c3" : temp_dict
     }
+
 
 if __name__ == "__main__":
 

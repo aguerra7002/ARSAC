@@ -219,8 +219,8 @@ with experiment.train():
                             prev_actions_eval = np.concatenate((prev_actions_eval[action_space_size:], action_eval))
                             prev_states_eval = np.concatenate((prev_states_eval[state_space_size:], state_eval))
                         # Before we step in the environment, save the Mujoco state (qpos and qvel)
-                        # episode_eval_dict['qpos'].append(env.sim.get_state()[1].tolist()) # qpos
-                        # episode_eval_dict['qvel'].append(env.sim.get_state()[2].tolist()) # qvel
+                        episode_eval_dict['qpos'].append(env.sim.get_state()[1].tolist()) # qpos
+                        episode_eval_dict['qvel'].append(env.sim.get_state()[2].tolist()) # qvel
                         # Now we step forward in the environment by taking our action
                         action_noise_eval = np.random.normal(0, 0.1, action_space_size) if args.add_action_noise else 0
                         tmp_st_eval, reward_eval, done_eval, _ = env.step(action_eval + action_noise_eval)
@@ -232,10 +232,10 @@ with experiment.train():
                         # episode_eval_dict['action'].append(action_eval.tolist())
                         episode_eval_dict['reward'].append(reward_eval.tolist())
                         # Also add stats about the output of our neural networks:
-                        # episode_eval_dict['base_mean'].append(bmean.tolist())
-                        # episode_eval_dict['base_std'].append(bstd.tolist())
-                        # episode_eval_dict['adj_scale'].append(ascle.tolist())
-                        # episode_eval_dict['adj_shift'].append(ashft.tolist())
+                        episode_eval_dict['base_mean'].append(bmean.tolist())
+                        episode_eval_dict['base_std'].append(bstd.tolist())
+                        episode_eval_dict['adj_scale'].append(ascle.tolist())
+                        episode_eval_dict['adj_shift'].append(ashft.tolist())
 
                         # Move to the next state
                         state_eval = next_state_eval
