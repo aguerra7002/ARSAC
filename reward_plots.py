@@ -216,14 +216,14 @@ ant_sac_dict = {"SAC (1x32)" : ['826e53dbaf2e440daeab39e2960c8107',
                 #                         '',
                 #                         '']}
 
-temp_dict = {"ARSAC (1 x 32)" : ['87e45a7a2bea4a0497021bfd692ec6c3']}
+temp_dict = {"ARSAC (1 x 32)" : ['ce91f8efa4674be0b09ea2e844c3771b']}
 
 to_plot_dict = {
         # "Hopper-v2" : hopper_sac_dict,
         # "HalfCheetah" : halfcheetah_sac_dict,
         # "Walker2d" : walker_sac_dict,
         # "Ant" : ant_sac_dict
-        "87e45a7a2bea4a0497021bfd692ec6c3" : temp_dict
+        "ce91f8efa4674be0b09ea2e844c3771b" : temp_dict
     }
 
 

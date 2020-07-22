@@ -36,7 +36,7 @@ parser.add_argument('--ignore_scale', type=bool, default=False, metavar='G',
                     help='Causes normal autoregressive flow to only have a shift component')
 parser.add_argument('--use_prev_states', type=bool, default=False, metavar='G',
                     help='Determines whether or not to use previous states as well as actions')
-parser.add_argument('--action_lookback', type=int, default=10, metavar='G',
+parser.add_argument('--action_lookback', type=int, default=3, metavar='G',
                     help='Use phi network to de-correlate time dependence and state by using previous action(s)')
 parser.add_argument('--add_state_noise', type=bool, default=False, metavar='G',
                     help='Adds a small amount of Gaussian noise to the state')
@@ -54,8 +54,11 @@ parser.add_argument('--use_l2_reg', type=bool, default=True, metavar='G',
                     help="Uses l2 regularization on state-action policy if true, otherwise uses l1 regularization")
 parser.add_argument('--restrict_base_output', type=float, default=0.0001, metavar='G',
                     help="Restricts output of base network by adding loss based on norm of network output")
-parser.add_argument('--position_only', type=bool, default=True, metavar='G',
-                    help="Determines whether or not we only use the Mujoco positions versus the entire state")
+parser.add_argument('--position_only', type=bool, default=False, metavar='G',
+                    help="Determines whether or not we only use the Mujoco positions versus the entire state. This " +
+                         "argument is ignored if pixel_based is True.")
+parser.add_argument('--pixel_based', type=bool, default=True, metavar='G',
+                    help='Uses a pixel based state as opposed to position/velocity vectors. Do not use with use_prev_states=True')
 #######################################################
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
@@ -84,6 +87,9 @@ with open('models/' + args.env_name + '_parser_args_' + str(args.action_lookback
 
 # Environment
 env = gym.make(args.env_name)
+if args.pixel_based:
+    import mujoco_py
+    env.env.viewer = mujoco_py.MjViewer(env.env.sim)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 env.seed(args.seed)
@@ -93,17 +99,17 @@ state_space_size = env.sim.get_state().qpos.shape[0] if args.position_only else 
 
 # Function for getting the state we will use for training. If temp_state is not provided, will reset environment
 def get_state(temp_state=None):
+
     if temp_state is None:
-        if args.position_only:
-            env.reset()
-            ret = env.sim.get_state().qpos  # Just the position
-        else:
-            ret = env.reset()  # The entire state
+        ret = env.reset() # Will reset the environment
     else:
-        if args.position_only:
-            ret = env.sim.get_state().qpos
-        else:
-            ret = temp_state
+        ret = temp_state
+
+    if args.pixel_based:
+        ret = env.env.sim.render(camera_name='track', width=64, height=64, depth=False)
+        ret = ret.reshape((ret.shape[2], ret.shape[1], ret.shape[0]))
+    elif args.position_only:
+        ret = env.sim.get_state().qpos  # Just the position
 
     # Return the state, adding noise if args say we should
     return ret + (np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0)
@@ -136,7 +142,7 @@ with experiment.train():
         # Reset the previous action, as our program factors this into account when taking future actions
         if lookback > 0:
             prev_actions = np.zeros(action_space_size * lookback)
-            prev_states = np.zeros(state_space_size * lookback)
+            prev_states = np.zeros(state_space_size * lookback) # TODO: Account for pixel_based models
         else:
             prev_actions = None
             prev_states = None
@@ -184,7 +190,8 @@ with experiment.train():
 
             if lookback > 0:
                 prev_actions = np.concatenate((prev_actions[action_space_size:], action))
-                prev_states = np.concatenate((prev_states[state_space_size:], state))
+                if args.use_prev_states:
+                    prev_states = np.concatenate((prev_states[state_space_size:], state))
 
             state = next_state
 
@@ -217,7 +224,8 @@ with experiment.train():
 
                         if lookback > 0:
                             prev_actions_eval = np.concatenate((prev_actions_eval[action_space_size:], action_eval))
-                            prev_states_eval = np.concatenate((prev_states_eval[state_space_size:], state_eval))
+                            if args.use_prev_states:
+                                prev_states_eval = np.concatenate((prev_states_eval[state_space_size:], state_eval))
                         # Before we step in the environment, save the Mujoco state (qpos and qvel)
                         episode_eval_dict['qpos'].append(env.sim.get_state()[1].tolist()) # qpos
                         episode_eval_dict['qvel'].append(env.sim.get_state()[2].tolist()) # qvel

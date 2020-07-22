@@ -31,6 +31,53 @@ class ValueNetwork(nn.Module):
         return x
 
 
+class ConvQNetwork(nn.Module):
+    def __init__(self, num_inputs, num_actions, hidden_dim):
+        super(ConvQNetwork, self).__init__()
+
+        # Q1 architecture
+        self.conv1 = nn.Conv2d(3, 32, 4, stride=2)  # image has 3 channels
+        self.conv2 = nn.Conv2d(32, 64, 4, stride=2)
+        self.conv3 = nn.Conv2d(64, 128, 4, stride=2)
+        self.conv4 = nn.Conv2d(128, 256, 4, stride=2)
+        self.linear1 = nn.Linear(2 * 2 * 256 + num_actions, hidden_dim)
+        self.linear2 = nn.Linear(hidden_dim, hidden_dim)
+        self.linear3 = nn.Linear(hidden_dim, 1)
+
+        # Q2 architecture
+        self.conv5 = nn.Conv2d(3, 32, 4, stride=2)  # image has 3 channels
+        self.conv6 = nn.Conv2d(32, 64, 4, stride=2)
+        self.conv7 = nn.Conv2d(64, 128, 4, stride=2)
+        self.conv8 = nn.Conv2d(128, 256, 4, stride=2)
+        self.linear4 = nn.Linear(2 * 2 * 256 + num_actions, hidden_dim)
+        self.linear5 = nn.Linear(hidden_dim, hidden_dim)
+        self.linear6 = nn.Linear(hidden_dim, 1)
+
+        self.apply(weights_init_)
+
+    def forward(self, state, action):
+        x1 = F.relu(self.conv1(state))
+        x1 = F.relu(self.conv2(x1))
+        x1 = F.relu(self.conv3(x1))
+        x1 = F.relu(self.conv4(x1))
+        x1 = x1.view(x1.size(0), -1)
+        x1 = torch.cat([x1, action], 1)
+        x1 = F.relu(self.linear1(x1))
+        x1 = F.relu(self.linear2(x1))
+        x1 = self.linear3(x1)
+
+        x2 = F.relu(self.conv1(state))
+        x2 = F.relu(self.conv2(x2))
+        x2 = F.relu(self.conv3(x2))
+        x2 = F.relu(self.conv4(x2))
+        x2 = x2.view(x2.size(0), -1)
+        x2 = torch.cat([x2, action], 1)
+        x2 = F.relu(self.linear4(x2))
+        x2 = F.relu(self.linear5(x2))
+        x2 = self.linear6(x2)
+
+        return x1, x2
+
 class QNetwork(nn.Module):
     def __init__(self, num_inputs, num_actions, hidden_dim):
         super(QNetwork, self).__init__()
@@ -64,15 +111,25 @@ class QNetwork(nn.Module):
 class GaussianPolicy(nn.Module):
     def __init__(self, num_inputs, num_actions, hidden_dim, action_space=None,
                  action_lookback=0, use_prev_states=False, use_gated_transform=False, ignore_scale=False,
-                 hidden_dim_base=256):
+                 hidden_dim_base=256, pixel_based=False):
         super(GaussianPolicy, self).__init__()
         # Specifying the Theta Network (will map states to some latent space equal in dimension to action space)
         self.hidden_dim_base = hidden_dim_base
-        self.linear_theta_1 = nn.Linear(num_inputs, hidden_dim_base)
-        if hidden_dim_base == 256:
-            self.linear_theta_2 = nn.Linear(hidden_dim_base, hidden_dim_base)
-        self.mean_linear_theta = nn.Linear(hidden_dim_base, num_actions)
-        self.log_std_linear_theta = nn.Linear(hidden_dim_base, num_actions)
+        self.pixel_based = pixel_based
+        if not pixel_based:
+            self.linear_theta_1 = nn.Linear(num_inputs, hidden_dim_base)
+            if hidden_dim_base == 256:
+                self.linear_theta_2 = nn.Linear(hidden_dim_base, hidden_dim_base)
+            self.mean_linear_theta = nn.Linear(hidden_dim_base, num_actions)
+            self.log_std_linear_theta = nn.Linear(hidden_dim_base, num_actions)
+        else:
+            self.conv1 = nn.Conv2d(3, 32, 4, stride=2) # image has 3 channels
+            self.conv2 = nn.Conv2d(32, 64, 4, stride=2)
+            self.conv3 = nn.Conv2d(64, 128, 4, stride=2)
+            self.conv4 = nn.Conv2d(128, 256, 4, stride=2)
+            # TODO: Add in some way to change the size of these layers via 'hidden_dim_base' param
+            self.mean_linear_theta = nn.Linear(2 * 2 * 256, num_actions)
+            self.log_std_linear_theta = nn.Linear(2 * 2 * 256, num_actions)
 
         # How far back we look with the phi network
         self.action_lookback = action_lookback
@@ -115,25 +172,35 @@ class GaussianPolicy(nn.Module):
 
         reg_loss = 0
         norm_type = 'fro' if use_l2_reg else 'nuc'
-        for name, param in self.linear_theta_1.named_parameters():
-            if 'weight' in name:
-                reg_loss += torch.norm(param, p=norm_type)
-        for name, param in self.mean_linear_theta.named_parameters():
-            if 'weight' in name:
-                reg_loss += torch.norm(param, p=norm_type)
-        for name, param in self.log_std_linear_theta.named_parameters():
-            if 'weight' in name:
-                reg_loss += torch.norm(param, p=norm_type)
-        if self.hidden_dim_base == 256:
-            for name, param in self.linear_theta_2.named_parameters():
+        if not self.pixel_based:
+            for name, param in self.linear_theta_1.named_parameters():
                 if 'weight' in name:
                     reg_loss += torch.norm(param, p=norm_type)
+            for name, param in self.mean_linear_theta.named_parameters():
+                if 'weight' in name:
+                    reg_loss += torch.norm(param, p=norm_type)
+            for name, param in self.log_std_linear_theta.named_parameters():
+                if 'weight' in name:
+                    reg_loss += torch.norm(param, p=norm_type)
+            if self.hidden_dim_base == 256:
+                for name, param in self.linear_theta_2.named_parameters():
+                    if 'weight' in name:
+                        reg_loss += torch.norm(param, p=norm_type)
+        else:
+            pass # TODO; implement regularization for CNN layers
         return reg_loss * lambda_reg
 
     def forward_theta(self, state):
-        x = F.relu(self.linear_theta_1(state))
-        if self.hidden_dim_base == 256:
-            x = F.relu(self.linear_theta_2(x))
+        if not self.pixel_based:
+            x = F.relu(self.linear_theta_1(state))
+            if self.hidden_dim_base == 256:
+                x = F.relu(self.linear_theta_2(x))
+        else:
+            x = F.relu(self.conv1(state))
+            x = F.relu(self.conv2(x))
+            x = F.relu(self.conv3(x))
+            x = F.relu(self.conv4(x))
+            x = x.view(x.size(0), -1)
         mean = self.mean_linear_theta(x)
         log_std = self.log_std_linear_theta(x)
         log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX)

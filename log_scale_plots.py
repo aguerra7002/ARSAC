@@ -25,12 +25,12 @@ POLY_DEG = 3
 
 def make_log_scale_plots(experiment_dict, env_name):
     fig, axs = plt.subplots(1)
-    fig.suptitle(env_name + " AR use over time")
+    #fig.suptitle(env_name + " AR use over time")
     axs.set_xlabel("Eval episodes")
     axs.set_ylabel("Avg. Log(Scale)")
 
     # Eval episode steps
-    x_axis = range(1, 300)
+    x_axis = range(1, 500)
 
     print(env_name + " Log Scale Plots")
 
@@ -61,17 +61,17 @@ def make_log_scale_plots(experiment_dict, env_name):
 
                 # Now we get the asset
                 scales = experiment.get_asset(asset_id, return_type="json")
-                print(scales)
+                #print(scales)
                 log_scale = np.mean(np.log(np.array(scales)))
                 avg_log_scales[step - 1, i] += log_scale
 
-        print(avg_log_scales)
+        #print(avg_log_scales)
         mean = np.mean(avg_log_scales, axis=1)
         std = np.std(avg_log_scales, axis=1)
 
         axs.plot(x_axis, mean)
         axs.fill_between(x_axis, mean - std, mean + std, alpha=0.25)
-    axs.legend(axs.get_lines(), experiment_dict.keys(), prop={'size': 10}, title="Hidden Dimension")
+    #axs.legend(axs.get_lines(), experiment_dict.keys(), prop={'size': 10}, title="Hidden Dimension")
     fig.savefig("log_scale_plots/" + env_name.replace(" ", "_") + "_log_scale_over_training.pdf")
 
 
@@ -113,7 +113,10 @@ hopper_dict = {"Hidden_Dim 1x32": ['8c8cc4849f9d4176a11b674dfd3757c9',  # 4
                                     'f8d3661c1bc84e728dfdf83ac5b8770f',  # 6
                                     'e72b115236594b92a7f47328909fd5e3']}  # 7
 
-long_dict = {"Hidden Dim 1x32": ['87e45a7a2bea4a0497021bfd692ec6c3']}
+long_dict = {"Lookback 5": [''],
+             "Lookback 10": [''],
+             "Lookback 20": [''],
+             "Lookback 30": ['']}
 
 if __name__ == "__main__":
 
@@ -122,7 +125,7 @@ if __name__ == "__main__":
     # make_log_scale_plots(walker_dict, "Walker")
     # make_log_scale_plots(hopper_dict, "Hopper")
     #make_log_scale_plots(ant_dict, "Ant")
-    make_log_scale_plots(long_dict, "87e45a7a2bea4a0497021bfd692ec6c3")
+    make_log_scale_plots(long_dict, "Walker2d")
 
 
 

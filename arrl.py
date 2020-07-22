@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 from torch.optim import Adam
 from utils import soft_update, hard_update
-from model import GaussianPolicy, QNetwork, DeterministicPolicy
+from model import GaussianPolicy, QNetwork, DeterministicPolicy, ConvQNetwork
 
 
 class ARRL(object):
@@ -27,11 +27,16 @@ class ARRL(object):
         self.automatic_entropy_tuning = args.automatic_entropy_tuning
 
         self.device = torch.device("cuda" if args.cuda else "cpu")
-
-        self.critic = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(device=self.device)
+        if args.pixel_based:
+            self.critic = ConvQNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(device=self.device)
+        else:
+            self.critic = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(device=self.device)
         self.critic_optim = Adam(self.critic.parameters(), lr=args.lr)
 
-        self.critic_target = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(self.device)
+        if args.pixel_based:
+            self.critic_target = ConvQNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(device=self.device)
+        else:
+            self.critic_target = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(device=self.device)
         hard_update(self.critic_target, self.critic)
 
         if self.policy_type == "Gaussian":
@@ -43,7 +48,7 @@ class ARRL(object):
 
             self.policy = GaussianPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space,
                                         self.action_lookback, self.use_prev_states, self.use_gated_transform,
-                                        self.ignore_scale, args.hidden_dim_base).to(self.device)
+                                        self.ignore_scale, args.hidden_dim_base, args.pixel_based).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
         else:
@@ -97,8 +102,9 @@ class ARRL(object):
         if None not in prev_state_batch:
             # we need to put together prev_next_state_batch for feeding to the actor network later.
             state_space_size = int(prev_state_batch.shape[1] / self.action_lookback)
-            prev_next_state_batch = np.concatenate((prev_state_batch[:, state_space_size:], state_batch), axis=1)
-            prev_next_state_batch = torch.FloatTensor(prev_next_state_batch).to(self.device)
+            if self.use_prev_states:
+                prev_next_state_batch = np.concatenate((prev_state_batch[:, state_space_size:], state_batch), axis=1)
+                prev_next_state_batch = torch.FloatTensor(prev_next_state_batch).to(self.device)
             prev_state_batch = torch.FloatTensor(prev_state_batch).to(self.device)
 
         if None not in prev_action_batch:
@@ -108,7 +114,6 @@ class ARRL(object):
             prev_next_action_batch = torch.FloatTensor(prev_next_action_batch).to(self.device)
             prev_action_batch = torch.FloatTensor(prev_action_batch).to(self.device)
 
-
         state_batch = torch.FloatTensor(state_batch).to(self.device)
         next_state_batch = torch.FloatTensor(next_state_batch).to(self.device)
         action_batch = torch.FloatTensor(action_batch).to(self.device)
@@ -116,15 +121,11 @@ class ARRL(object):
         mask_batch = torch.FloatTensor(mask_batch).to(self.device).unsqueeze(1)
 
         with torch.no_grad():
-            # Old (wrong)
-            # next_state_action, next_state_log_pi, _ = \
-            #     self.policy.sample(next_state_batch, prev_state_batch, prev_action_batch)
-            # New:
             next_state_action, next_state_log_pi, _ = \
                 self.policy.sample(next_state_batch, prev_next_state_batch, prev_next_action_batch)
             qf1_next_target, qf2_next_target = self.critic_target(next_state_batch, next_state_action)
             min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
-            next_q_value = reward_batch + mask_batch * self.gamma * (min_qf_next_target)
+            next_q_value = reward_batch + mask_batch * self.gamma * min_qf_next_target
 
         qf1, qf2 = self.critic(state_batch,
                                action_batch)  # Two Q-functions to mitigate positive bias in the policy improvement step
