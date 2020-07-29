@@ -34,10 +34,14 @@ parser.add_argument('--use_gated_transform', type=bool, default=False, metavar='
                     help='Use Inverse Autoregressive Flow')
 parser.add_argument('--ignore_scale', type=bool, default=False, metavar='G',
                     help='Causes normal autoregressive flow to only have a shift component')
-parser.add_argument('--use_prev_states', type=bool, default=False, metavar='G',
-                    help='Determines whether or not to use previous states as well as actions')
-parser.add_argument('--action_lookback', type=int, default=3, metavar='G',
+parser.add_argument('--state_lookback_actor', type=int, default=3, metavar='G',
+                    help='Determines whether or not to use previous states as well as actions in actor network')
+parser.add_argument('--action_lookback_actor', type=int, default=3, metavar='G',
                     help='Use phi network to de-correlate time dependence and state by using previous action(s)')
+parser.add_argument('--state_lookback_critic', type=int, default=3, metavar='G',
+                    help='Determines how many states we look back when estimating rewards')
+parser.add_argument('--action_lookback_critic', type=int, default=3, metavar='G',
+                    help='Determines how many actions we look back when estimating rewards')
 parser.add_argument('--add_state_noise', type=bool, default=False, metavar='G',
                     help='Adds a small amount of Gaussian noise to the state')
 parser.add_argument('--add_action_noise', type=bool, default=False, metavar='G',
@@ -59,6 +63,8 @@ parser.add_argument('--position_only', type=bool, default=False, metavar='G',
                          "argument is ignored if pixel_based is True.")
 parser.add_argument('--pixel_based', type=bool, default=True, metavar='G',
                     help='Uses a pixel based state as opposed to position/velocity vectors. Do not use with use_prev_states=True')
+parser.add_argument('--resolution', type=int, default=64, metavar='G',
+                    help='Decides the resolution of the pixel based image. Default is 64x64.')
 #######################################################
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
@@ -70,9 +76,9 @@ parser.add_argument('--hidden_size', type=int, default=256, metavar='N',
                     help='hidden size (default: 256)')
 parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
                     help='model updates per simulator step (default: 1)')
-parser.add_argument('--start_steps', type=int, default=10000, metavar='N',
+parser.add_argument('--start_steps', type=int, default=1000, metavar='N', # TODO: CHANGE BACK TO 10000!!!
                     help='Steps sampling random actions (default: 10000)')
-parser.add_argument('--eval_steps', type=int, default=10000, metavar='N',
+parser.add_argument('--eval_steps', type=int, default=1000, metavar='N', # TODO: CHANGE BACK TO 10000!!!!
                     help='Steps between each evaluation episode')
 parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
                     help='Value target update per no. of updates per step (default: 1)')
@@ -82,7 +88,7 @@ parser.add_argument('--cuda', action="store_true", default=False,
                     help='run on CUDA (default: False)')
 args = parser.parse_args()
 
-with open('models/' + args.env_name + '_parser_args_' + str(args.action_lookback) + '.txt', 'w') as f:
+with open('models/' + args.env_name + '_parser_args_' + str(args.action_lookback_actor) + '.txt', 'w') as f:
     json.dump(args.__dict__, f, indent=2)
 
 # Environment
@@ -94,7 +100,13 @@ torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 env.seed(args.seed)
 action_space_size = env.action_space.sample().shape[0]
-state_space_size = env.sim.get_state().qpos.shape[0] if args.position_only else env.reset().shape[0]
+
+if args.pixel_based:
+    state_space_size = 3 # Corresponding to number of channels. Maybe change to be more adaptable?
+elif args.position_only:
+    state_space_size = env.sim.get_state().qpos.shape[0]
+else:
+    state_space_size = env.reset().shape[0]
 
 
 # Function for getting the state we will use for training. If temp_state is not provided, will reset environment
@@ -106,7 +118,7 @@ def get_state(temp_state=None):
         ret = temp_state
 
     if args.pixel_based:
-        ret = env.env.sim.render(camera_name='track', width=64, height=64, depth=False)
+        ret = env.env.sim.render(camera_name='track', width=args.resolution, height=args.resolution, depth=False)
         ret = ret.reshape((ret.shape[2], ret.shape[1], ret.shape[0]))
     elif args.position_only:
         ret = env.sim.get_state().qpos  # Just the position
@@ -138,16 +150,23 @@ with experiment.train():
         episode_steps = 0
         done = False
         state = get_state(temp_state=None)
-        lookback = args.action_lookback
+        action_lookback = max(args.action_lookback_actor, args.action_lookback_critic)
+        state_lookback = max(args.state_lookback_actor, args.state_lookback_critic)
         # Reset the previous action, as our program factors this into account when taking future actions
-        if lookback > 0:
-            prev_actions = np.zeros(action_space_size * lookback)
-            prev_states = np.zeros(state_space_size * lookback) # TODO: Account for pixel_based models
+        if action_lookback > 0:
+            prev_actions = np.zeros(action_space_size * action_lookback)
         else:
             prev_actions = None
+        if state_lookback > 0:
+            if args.pixel_based:
+                prev_states = np.zeros((state_space_size * state_lookback, args.resolution, args.resolution))
+            else:
+                prev_states = np.zeros(state_space_size * state_lookback)
+        else:
             prev_states = None
 
         while not done:
+            print(total_numsteps)
             if args.start_steps > total_numsteps:
                 action = env.action_space.sample()  # Sample random action
             else:
@@ -188,10 +207,10 @@ with experiment.train():
             # Append transition to memory
             memory.push(prev_states, prev_actions, state, action, reward, next_state, mask)
 
-            if lookback > 0:
+            if action_lookback > 0:
                 prev_actions = np.concatenate((prev_actions[action_space_size:], action))
-                if args.use_prev_states:
-                    prev_states = np.concatenate((prev_states[state_space_size:], state))
+            if state_lookback > 0:
+                prev_states = np.concatenate((prev_states[state_space_size:], state))
 
             state = next_state
 
@@ -208,12 +227,19 @@ with experiment.train():
 
                 for _ in range(episodes_eval):
                     state_eval = get_state(temp_state=None)
-                    if lookback > 0:
-                        prev_actions_eval = np.zeros(action_space_size * lookback)
-                        prev_states_eval = np.zeros(state_space_size * lookback)
+
+                    if action_lookback > 0:
+                        prev_actions_eval = np.zeros(action_space_size * action_lookback)
                     else:
                         prev_actions_eval = None
+                    if state_lookback > 0:
+                        if args.pixel_based:
+                            prev_states_eval = np.zeros((state_space_size * state_lookback, args.resolution, args.resolution))
+                        else:
+                            prev_states_eval = np.zeros(state_space_size * state_lookback)
+                    else:
                         prev_states_eval = None
+
                     episode_reward_eval = 0
                     done_eval = False
                     while not done_eval:
@@ -222,10 +248,10 @@ with experiment.train():
                             agent.select_action(state_eval, prev_states_eval, prev_actions_eval,
                                                 eval=True, return_distribution=True, random_base=args.random_base_eval)
 
-                        if lookback > 0:
+                        if action_lookback > 0:
                             prev_actions_eval = np.concatenate((prev_actions_eval[action_space_size:], action_eval))
-                            if args.use_prev_states:
-                                prev_states_eval = np.concatenate((prev_states_eval[state_space_size:], state_eval))
+                        if args.state_lookback > 0:
+                            prev_states_eval = np.concatenate((prev_states_eval[state_space_size:], state_eval))
                         # Before we step in the environment, save the Mujoco state (qpos and qvel)
                         episode_eval_dict['qpos'].append(env.sim.get_state()[1].tolist()) # qpos
                         episode_eval_dict['qvel'].append(env.sim.get_state()[2].tolist()) # qvel
@@ -278,7 +304,7 @@ with experiment.train():
                 break
 
         # Log to comet.ml
-        experiment.log_metric("Epsiode_Reward", episode_reward, step=i_episode)
+        experiment.log_metric("Episode_Reward", episode_reward, step=i_episode)
         # Log to console
         # print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps,
         #                                                                              episode_steps,
@@ -289,7 +315,11 @@ with experiment.train():
 
 # Save the final model before finishing program
 agent.save_model(args.env_name,
-                 actor_path="models/" + args.env_name + "_actor_" + str(lookback) + ".model",
-                 critic_path="models/" + args.env_name + "_critic_" + str(lookback) + ".model")
+                 actor_path="models/" + args.env_name + "_actor_" + str(action_lookback) + ".model",
+                 critic_path="models/" + args.env_name + "_critic_" + str(action_lookback) + ".model")
+
+# Log the models to comet in case we want to use them later.
+experiment.log_asset("models/" + args.env_name + "_actor_" + str(action_lookback) + ".model")
+experiment.log_asset("models/" + args.env_name + "_critic_" + str(action_lookback) + ".model")
 
 env.close()

@@ -41,12 +41,11 @@ def make_log_scale_plots(experiment_dict, env_name):
 
         # For each experiment with this hidden dimension
         for i, experiment_id in enumerate(experiment_dict[key]):
-            print(i)
+
             experiment = comet_api.get_experiment(project_name=project_name,
                                                   workspace=workspace,
                                                   experiment=experiment_id)
             asset_list = experiment.get_asset_list()
-            print(asset_list[0])
 
             # For every eval episode
             for step in x_axis:
@@ -71,7 +70,7 @@ def make_log_scale_plots(experiment_dict, env_name):
 
         axs.plot(x_axis, mean)
         axs.fill_between(x_axis, mean - std, mean + std, alpha=0.25)
-    #axs.legend(axs.get_lines(), experiment_dict.keys(), prop={'size': 10}, title="Hidden Dimension")
+    axs.legend(axs.get_lines(), experiment_dict.keys(), prop={'size': 10}, title="Hidden Dimension")
     fig.savefig("log_scale_plots/" + env_name.replace(" ", "_") + "_log_scale_over_training.pdf")
 
 
@@ -112,11 +111,15 @@ hopper_dict = {"Hidden_Dim 1x32": ['8c8cc4849f9d4176a11b674dfd3757c9',  # 4
                                     'ed5e6ef37a1541e0adb9096b03f6f3e6',  # 5
                                     'f8d3661c1bc84e728dfdf83ac5b8770f',  # 6
                                     'e72b115236594b92a7f47328909fd5e3']}  # 7
+# 07-22-20 tests
+hopper_dict2 = {"Lookback 10": ['676b480ab1e8451d8d73f0f8c6b22bd0'],
+                "Lookback 30": ['db4c0cee9aaf4725ad5caf9811eaceca']}
 
-long_dict = {"Lookback 5": [''],
-             "Lookback 10": [''],
-             "Lookback 20": [''],
-             "Lookback 30": ['']}
+walker_dict2 = {"Lookback 10": ['0b4b4bd11e244a619ff34f07d812bab2'],
+                "Lookback 30": ['2e320453ae1348dba90a81f8fb87df5c']}
+
+halfcheetah_dict2 = {"Lookback 10": ['dec6edaf76714b2286b6eb601672d7d4'],
+                     "Lookback 30": ['b8c6cb71130f402f94f9bf0c1b1202bd']}
 
 if __name__ == "__main__":
 
@@ -125,7 +128,9 @@ if __name__ == "__main__":
     # make_log_scale_plots(walker_dict, "Walker")
     # make_log_scale_plots(hopper_dict, "Hopper")
     #make_log_scale_plots(ant_dict, "Ant")
-    make_log_scale_plots(long_dict, "Walker2d")
+    make_log_scale_plots(hopper_dict2, "07-22-20 Hopper")
+    make_log_scale_plots(walker_dict2, "07-22-20 Walker")
+    make_log_scale_plots(halfcheetah_dict2, "07-22-20 Half Cheetah")
 
 
 

@@ -218,12 +218,25 @@ ant_sac_dict = {"SAC (1x32)" : ['826e53dbaf2e440daeab39e2960c8107',
 
 temp_dict = {"ARSAC (1 x 32)" : ['ce91f8efa4674be0b09ea2e844c3771b']}
 
+# 07-22-20 tests
+hopper_dict2 = {"Lookback 10": ['676b480ab1e8451d8d73f0f8c6b22bd0'],
+                "Lookback 30": ['db4c0cee9aaf4725ad5caf9811eaceca']}
+
+walker_dict2 = {"Lookback 10": ['0b4b4bd11e244a619ff34f07d812bab2'],
+                "Lookback 30": ['2e320453ae1348dba90a81f8fb87df5c']}
+
+halfcheetah_dict2 = {"Lookback 10": ['dec6edaf76714b2286b6eb601672d7d4'],
+                     "Lookback 30": ['b8c6cb71130f402f94f9bf0c1b1202bd']}
+
 to_plot_dict = {
         # "Hopper-v2" : hopper_sac_dict,
         # "HalfCheetah" : halfcheetah_sac_dict,
         # "Walker2d" : walker_sac_dict,
         # "Ant" : ant_sac_dict
-        "ce91f8efa4674be0b09ea2e844c3771b" : temp_dict
+        #"ce91f8efa4674be0b09ea2e844c3771b" : temp_dict
+        "07-22-20 Hopper" : hopper_dict2,
+        "07-22-20 Walker" : walker_dict2,
+        "07-22-20 Half-Cheetah" : halfcheetah_dict2
     }
 
 

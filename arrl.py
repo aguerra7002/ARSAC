@@ -13,10 +13,14 @@ class ARRL(object):
         self.gamma = args.gamma
         self.tau = args.tau
         self.alpha = args.alpha
+        self.state_space_size = num_inputs
+        self.action_space_size = action_space.shape[0]
 
-        self.action_lookback = args.action_lookback
+        self.action_lookback_actor = args.action_lookback_actor
+        self.action_lookback_critic = args.action_lookback_critic
+        self.state_lookback_actor = args.state_lookback_actor
+        self.state_lookback_critic = args.state_lookback_critic
         self.ignore_scale = args.ignore_scale
-        self.use_prev_states = args.use_prev_states
         self.use_gated_transform = args.use_gated_transform
         self.lambda_reg = args.lambda_reg
         self.use_l2_reg = args.use_l2_reg
@@ -28,15 +32,23 @@ class ARRL(object):
 
         self.device = torch.device("cuda" if args.cuda else "cpu")
         if args.pixel_based:
-            self.critic = ConvQNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(device=self.device)
+            self.critic = ConvQNetwork(3, self.state_lookback_critic, # 3 channels
+                                       action_space.shape[0], self.action_lookback_critic,
+                                       args.hidden_size).to(device=self.device)
         else:
-            self.critic = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(device=self.device)
+            self.critic = QNetwork(num_inputs, self.state_lookback_critic,
+                                   action_space.shape[0], self.action_lookback_critic,
+                                   args.hidden_size).to(device=self.device)
         self.critic_optim = Adam(self.critic.parameters(), lr=args.lr)
 
         if args.pixel_based:
-            self.critic_target = ConvQNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(device=self.device)
+            self.critic_target = ConvQNetwork(3, self.state_lookback_critic,
+                                       action_space.shape[0], self.action_lookback_critic,
+                                       args.hidden_size).to(device=self.device)
         else:
-            self.critic_target = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(device=self.device)
+            self.critic_target = QNetwork(num_inputs, self.state_lookback_critic,
+                                   action_space.shape[0], self.action_lookback_critic,
+                                   args.hidden_size).to(device=self.device)
         hard_update(self.critic_target, self.critic)
 
         if self.policy_type == "Gaussian":
@@ -47,8 +59,8 @@ class ARRL(object):
                 self.alpha_optim = Adam([self.log_alpha], lr=args.lr)
 
             self.policy = GaussianPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space,
-                                        self.action_lookback, self.use_prev_states, self.use_gated_transform,
-                                        self.ignore_scale, args.hidden_dim_base, args.pixel_based).to(self.device)
+                                         self.action_lookback_actor, self.state_lookback_actor, self.use_gated_transform,
+                                         self.ignore_scale, args.hidden_dim_base, args.pixel_based).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
         else:
@@ -101,16 +113,14 @@ class ARRL(object):
 
         if None not in prev_state_batch:
             # we need to put together prev_next_state_batch for feeding to the actor network later.
-            state_space_size = int(prev_state_batch.shape[1] / self.action_lookback)
-            if self.use_prev_states:
-                prev_next_state_batch = np.concatenate((prev_state_batch[:, state_space_size:], state_batch), axis=1)
+            if self.state_lookback_actor > 0 or self.state_lookback_critic > 0:
+                prev_next_state_batch = np.concatenate((prev_state_batch[:, self.state_space_size:], state_batch), axis=1)
                 prev_next_state_batch = torch.FloatTensor(prev_next_state_batch).to(self.device)
             prev_state_batch = torch.FloatTensor(prev_state_batch).to(self.device)
 
         if None not in prev_action_batch:
             # Same as with states, need to compute the prev_next_action_batch
-            action_space_size = int(prev_action_batch.shape[1] / self.action_lookback)
-            prev_next_action_batch = np.concatenate((prev_action_batch[:, action_space_size:], action_batch), axis=1)
+            prev_next_action_batch = np.concatenate((prev_action_batch[:, self.action_space_size:], action_batch), axis=1)
             prev_next_action_batch = torch.FloatTensor(prev_next_action_batch).to(self.device)
             prev_action_batch = torch.FloatTensor(prev_action_batch).to(self.device)
 
@@ -123,19 +133,20 @@ class ARRL(object):
         with torch.no_grad():
             next_state_action, next_state_log_pi, _ = \
                 self.policy.sample(next_state_batch, prev_next_state_batch, prev_next_action_batch)
-            qf1_next_target, qf2_next_target = self.critic_target(next_state_batch, next_state_action)
+            qf1_next_target, qf2_next_target = self.critic_target(next_state_batch, next_state_action,
+                                                                  prev_next_state_batch, prev_next_action_batch)
             min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
             next_q_value = reward_batch + mask_batch * self.gamma * min_qf_next_target
 
-        qf1, qf2 = self.critic(state_batch,
-                               action_batch)  # Two Q-functions to mitigate positive bias in the policy improvement step
+        # Two Q-functions to mitigate positive bias in the policy improvement step
+        qf1, qf2 = self.critic(state_batch, action_batch, prev_state_batch, prev_action_batch)
 
         qf1_loss = F.mse_loss(qf1, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
         qf2_loss = F.mse_loss(qf2, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
         pi, log_pi, _, policy_mean, policy_std, _, _ = \
             self.policy.sample(state_batch, prev_state_batch, prev_action_batch, return_distribution=True)
 
-        qf1_pi, qf2_pi = self.critic(state_batch, pi)
+        qf1_pi, qf2_pi = self.critic(state_batch, pi, prev_state_batch, prev_action_batch)
         min_qf_pi = torch.min(qf1_pi, qf2_pi)
 
         policy_loss = ((self.alpha * log_pi) - min_qf_pi).mean()  # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]

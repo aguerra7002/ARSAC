@@ -32,46 +32,61 @@ class ValueNetwork(nn.Module):
 
 
 class ConvQNetwork(nn.Module):
-    def __init__(self, num_inputs, num_actions, hidden_dim):
+    def __init__(self, num_channels, state_lookback, num_actions, action_lookback, hidden_dim):
         super(ConvQNetwork, self).__init__()
 
+        self.state_lookback = state_lookback
+        self.num_channels = num_channels
+        self.num_actions = num_actions
+        self.action_lookback = action_lookback
+
+
         # Q1 architecture
-        self.conv1 = nn.Conv2d(3, 32, 4, stride=2)  # image has 3 channels
+        self.conv1 = nn.Conv2d(num_channels * (state_lookback + 1), 32, 4, stride=2)
         self.conv2 = nn.Conv2d(32, 64, 4, stride=2)
         self.conv3 = nn.Conv2d(64, 128, 4, stride=2)
         self.conv4 = nn.Conv2d(128, 256, 4, stride=2)
-        self.linear1 = nn.Linear(2 * 2 * 256 + num_actions, hidden_dim)
+        self.linear1 = nn.Linear(2 * 2 * 256 + num_actions * (action_lookback + 1), hidden_dim)
         self.linear2 = nn.Linear(hidden_dim, hidden_dim)
         self.linear3 = nn.Linear(hidden_dim, 1)
 
         # Q2 architecture
-        self.conv5 = nn.Conv2d(3, 32, 4, stride=2)  # image has 3 channels
+        self.conv5 = nn.Conv2d(num_channels * (state_lookback + 1), 32, 4, stride=2)
         self.conv6 = nn.Conv2d(32, 64, 4, stride=2)
         self.conv7 = nn.Conv2d(64, 128, 4, stride=2)
         self.conv8 = nn.Conv2d(128, 256, 4, stride=2)
-        self.linear4 = nn.Linear(2 * 2 * 256 + num_actions, hidden_dim)
+        self.linear4 = nn.Linear(2 * 2 * 256 + (num_actions * (action_lookback + 1)), hidden_dim)
         self.linear5 = nn.Linear(hidden_dim, hidden_dim)
         self.linear6 = nn.Linear(hidden_dim, 1)
 
         self.apply(weights_init_)
 
-    def forward(self, state, action):
-        x1 = F.relu(self.conv1(state))
+    def forward(self, state, action, prev_states, prev_actions):
+        if self.state_lookback > 0:
+            s1 = torch.cat((prev_states[:, -self.num_channels * self.state_lookback:], state), 1)
+        else:
+            s1 = state
+        if self.action_lookback > 0:
+            a1 = torch.cat((prev_actions[:, -self.num_actions * self.action_lookback:], action), 1)
+        else:
+            a1 = action
+
+        x1 = F.relu(self.conv1(s1))
         x1 = F.relu(self.conv2(x1))
         x1 = F.relu(self.conv3(x1))
         x1 = F.relu(self.conv4(x1))
         x1 = x1.view(x1.size(0), -1)
-        x1 = torch.cat([x1, action], 1)
+        x1 = torch.cat([x1, a1], 1)
         x1 = F.relu(self.linear1(x1))
         x1 = F.relu(self.linear2(x1))
         x1 = self.linear3(x1)
 
-        x2 = F.relu(self.conv1(state))
+        x2 = F.relu(self.conv1(s1))
         x2 = F.relu(self.conv2(x2))
         x2 = F.relu(self.conv3(x2))
         x2 = F.relu(self.conv4(x2))
         x2 = x2.view(x2.size(0), -1)
-        x2 = torch.cat([x2, action], 1)
+        x2 = torch.cat([x2, a1], 1)
         x2 = F.relu(self.linear4(x2))
         x2 = F.relu(self.linear5(x2))
         x2 = self.linear6(x2)
@@ -79,23 +94,38 @@ class ConvQNetwork(nn.Module):
         return x1, x2
 
 class QNetwork(nn.Module):
-    def __init__(self, num_inputs, num_actions, hidden_dim):
+    def __init__(self, num_inputs, state_lookback, num_actions, action_lookback, hidden_dim):
         super(QNetwork, self).__init__()
 
+        self.state_lookback = state_lookback
+        self.num_inputs = num_inputs
+        self.num_actions = num_actions
+        self.action_lookback = action_lookback
+
         # Q1 architecture
-        self.linear1 = nn.Linear(num_inputs + num_actions, hidden_dim)
+        self.linear1 = nn.Linear(num_inputs * (state_lookback + 1) + num_actions * (action_lookback + 1), hidden_dim)
         self.linear2 = nn.Linear(hidden_dim, hidden_dim)
         self.linear3 = nn.Linear(hidden_dim, 1)
 
         # Q2 architecture
-        self.linear4 = nn.Linear(num_inputs + num_actions, hidden_dim)
+        self.linear4 = nn.Linear(num_inputs * (state_lookback + 1) + num_actions * (action_lookback + 1), hidden_dim)
         self.linear5 = nn.Linear(hidden_dim, hidden_dim)
         self.linear6 = nn.Linear(hidden_dim, 1)
 
         self.apply(weights_init_)
 
-    def forward(self, state, action):
-        xu = torch.cat([state, action], 1)
+    def forward(self, state, action, previous_states, previous_actions):
+
+        if self.state_lookback > 0:
+            s1 = torch.cat((previous_states[:,-self.num_inputs * self.state_lookback:], state), 1)
+        else:
+            s1 = state
+        if self.action_lookback > 0:
+            a1 = torch.cat((previous_actions[:,-self.num_actions * self.action_lookback:], action), 1)
+        else:
+            a1 = action
+
+        xu = torch.cat([s1, a1], 1)
         
         x1 = F.relu(self.linear1(xu))
         x1 = F.relu(self.linear2(x1))
@@ -110,20 +140,20 @@ class QNetwork(nn.Module):
 
 class GaussianPolicy(nn.Module):
     def __init__(self, num_inputs, num_actions, hidden_dim, action_space=None,
-                 action_lookback=0, use_prev_states=False, use_gated_transform=False, ignore_scale=False,
+                 action_lookback=0, state_lookback=False, use_gated_transform=False, ignore_scale=False,
                  hidden_dim_base=256, pixel_based=False):
         super(GaussianPolicy, self).__init__()
         # Specifying the Theta Network (will map states to some latent space equal in dimension to action space)
         self.hidden_dim_base = hidden_dim_base
         self.pixel_based = pixel_based
         if not pixel_based:
-            self.linear_theta_1 = nn.Linear(num_inputs, hidden_dim_base)
+            self.linear_theta_1 = nn.Linear(num_inputs * (state_lookback + 1), hidden_dim_base)
             if hidden_dim_base == 256:
                 self.linear_theta_2 = nn.Linear(hidden_dim_base, hidden_dim_base)
             self.mean_linear_theta = nn.Linear(hidden_dim_base, num_actions)
             self.log_std_linear_theta = nn.Linear(hidden_dim_base, num_actions)
         else:
-            self.conv1 = nn.Conv2d(3, 32, 4, stride=2) # image has 3 channels
+            self.conv1 = nn.Conv2d(3 * (state_lookback + 1), 32, 4, stride=2) # image has 3 channels
             self.conv2 = nn.Conv2d(32, 64, 4, stride=2)
             self.conv3 = nn.Conv2d(64, 128, 4, stride=2)
             self.conv4 = nn.Conv2d(128, 256, 4, stride=2)
@@ -131,22 +161,19 @@ class GaussianPolicy(nn.Module):
             self.mean_linear_theta = nn.Linear(2 * 2 * 256, num_actions)
             self.log_std_linear_theta = nn.Linear(2 * 2 * 256, num_actions)
 
+        self.state_space_size = num_inputs
+        self.action_space_size = num_actions
         # How far back we look with the phi network
         self.action_lookback = action_lookback
         # Do we use prev actions and states? Or just prev actions
-        self.use_prev_states = use_prev_states
+        self.state_lookback = state_lookback
         # Do we use inverse autoregressive transform
         self.use_gated_transform = use_gated_transform
         # Do we use a scaling factor of 1?
         self.ignore_scale = ignore_scale
 
-        if use_prev_states:
-            phi_input_dim = (num_inputs + num_actions) * self.action_lookback
-        else:
-            phi_input_dim = num_actions * self.action_lookback
-
         if action_lookback > 0:
-            self.linear_phi_1 = nn.Linear(phi_input_dim, hidden_dim)
+            self.linear_phi_1 = nn.Linear(action_space.shape[0] * action_lookback, hidden_dim)
             self.linear_phi_2 = nn.Linear(hidden_dim, hidden_dim)
 
             self.log_scale_linear_phi = nn.Linear(hidden_dim, num_actions)
@@ -190,13 +217,18 @@ class GaussianPolicy(nn.Module):
             pass # TODO; implement regularization for CNN layers
         return reg_loss * lambda_reg
 
-    def forward_theta(self, state):
+    def forward_theta(self, state, previous_states):
+        if self.state_lookback > 0:
+            inp = torch.cat((previous_states[:,-self.state_space_size * self.state_lookback:], state), 1)
+        else:
+            inp = state
+
         if not self.pixel_based:
-            x = F.relu(self.linear_theta_1(state))
+            x = F.relu(self.linear_theta_1(inp))
             if self.hidden_dim_base == 256:
                 x = F.relu(self.linear_theta_2(x))
         else:
-            x = F.relu(self.conv1(state))
+            x = F.relu(self.conv1(inp))
             x = F.relu(self.conv2(x))
             x = F.relu(self.conv3(x))
             x = F.relu(self.conv4(x))
@@ -206,13 +238,9 @@ class GaussianPolicy(nn.Module):
         log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX)
         return mean, log_std
 
-    def forward_phi(self, prev_states, prev_actions):
+    def forward_phi(self, prev_actions):
 
-        if self.use_prev_states:
-            # Concatenate the previous states to the previous actions input to get new input.
-            inp = torch.cat((prev_states, prev_actions), 1)
-        else:
-            inp = prev_actions
+        inp = prev_actions[:, -self.action_space_size * self.action_lookback:]
         x = F.relu(self.linear_phi_1(inp))
         x = F.relu(self.linear_phi_2(x))
 
@@ -231,7 +259,7 @@ class GaussianPolicy(nn.Module):
 
     def sample(self, state, prev_states, prev_actions, return_distribution=False, random_base=False):
         # First pass the state through the state network
-        mean, log_std = self.forward_theta(state)
+        mean, log_std = self.forward_theta(state, prev_states)
         std = log_std.exp()
 
         if random_base:
@@ -246,7 +274,7 @@ class GaussianPolicy(nn.Module):
         log_prob = base_dist.log_prob(base_action)
 
         if self.action_lookback > 0:
-            m, sigma = self.forward_phi(prev_states, prev_actions)
+            m, sigma = self.forward_phi(prev_actions)
             if self.use_gated_transform:
                 # Inverse ar transform
                 action = sigma * base_action + (1 - sigma) * m
