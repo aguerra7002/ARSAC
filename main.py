@@ -60,7 +60,7 @@ parser.add_argument('--restrict_base_output', type=float, default=0.0001, metava
 parser.add_argument('--position_only', type=bool, default=False, metavar='G',
                     help="Determines whether or not we only use the Mujoco positions versus the entire state. This " +
                          "argument is ignored if pixel_based is True.")
-parser.add_argument('--pixel_based', type=bool, default=False, metavar='G',
+parser.add_argument('--pixel_based', type=bool, default=True, metavar='G',
                     help='Uses a pixel based state as opposed to position/velocity vectors. Do not use with use_prev_states=True')
 parser.add_argument('--resolution', type=int, default=64, metavar='G',
                     help='Decides the resolution of the pixel based image. Default is 64x64.')
@@ -75,9 +75,9 @@ parser.add_argument('--hidden_size', type=int, default=256, metavar='N',
                     help='hidden size (default: 256)')
 parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
                     help='model updates per simulator step (default: 1)')
-parser.add_argument('--start_steps', type=int, default=5000, metavar='N',
+parser.add_argument('--start_steps', type=int, default=10000, metavar='N',
                     help='Steps sampling random actions (default: 10000)')
-parser.add_argument('--eval_steps', type=int, default=5000, metavar='N',
+parser.add_argument('--eval_steps', type=int, default=10000, metavar='N',
                     help='Steps between each evaluation episode')
 parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
                     help='Value target update per no. of updates per step (default: 1)')
@@ -304,7 +304,7 @@ with experiment.train():
                 eval_dicts.append(episode_eval_dict)
                 experiment.log_asset_data(eval_dicts, name="output_metrics", step=int(total_numsteps / args.eval_steps), overwrite=True)
                 # Log the model every 5 eval episodes
-                if int(total_numsteps / args.eval_steps) % 5 == 1:
+                if int(total_numsteps / args.eval_steps) % 5 == 0:
                     evl = str(int(total_numsteps / args.eval_steps))
                     act_path = "models/actor_eval_" + evl + ".model"
                     crt_path = "models/critic_eval_" + evl + ".model"
