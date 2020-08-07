@@ -235,7 +235,10 @@ class GaussianPolicy(nn.Module):
             x = x.view(x.size(0), -1)
         mean = self.mean_linear_theta(x)
         log_std = self.log_std_linear_theta(x)
-        log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX)
+        # Soft learning:
+        log_std = LOG_SIG_MAX - F.softplus(LOG_SIG_MAX - log_std)
+        log_std = LOG_SIG_MIN + F.softplus(log_std - LOG_SIG_MIN)
+        #log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX) # <- what we had before
         return mean, log_std
 
     def forward_phi(self, prev_actions):
@@ -254,7 +257,10 @@ class GaussianPolicy(nn.Module):
             shift = self.shift_linear_phi(x)
             shift = torch.clamp(shift, min=-5.0, max=5.0)
             log_scale = self.log_scale_linear_phi(x)
-            log_scale = torch.clamp(log_scale, min=LOG_SIG_MIN, max=LOG_SIG_MAX) # Ensures that the scale factor is > 0
+            # Soft learning
+            log_scale = LOG_SIG_MAX - F.softplus(LOG_SIG_MAX - log_scale)
+            log_scale = LOG_SIG_MIN + F.softplus(log_scale - LOG_SIG_MIN)
+            #log_scale = torch.clamp(log_scale, min=LOG_SIG_MIN, max=LOG_SIG_MAX) <- What we had before.
             return shift, log_scale
 
     def sample(self, state, prev_states, prev_actions, return_distribution=False, random_base=False):

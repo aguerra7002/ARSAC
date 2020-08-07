@@ -38,7 +38,7 @@ def make_log_scale_plots(experiment_dict, env_name):
         print(key)
         # This is the final array we will plot
         avg_log_scales = np.zeros((len(x_axis), len(experiment_dict[key])))
-
+        avg_log_scales2 = np.zeros((len(x_axis), len(experiment_dict[key])))
         # For each experiment with this hidden dimension
         for i, experiment_id in enumerate(experiment_dict[key]):
 
@@ -51,6 +51,7 @@ def make_log_scale_plots(experiment_dict, env_name):
             for step in x_axis:
                 # Specify the file name
                 fileName = "episode_step_" + str(step * 10000) + "_adj_scale"
+                fileName2 = "episode_step_" + str(step * 10000) + "_base_std"
 
                 # Get the asset id
                 match = [x for x in asset_list if x['fileName'] == fileName]
@@ -58,19 +59,34 @@ def make_log_scale_plots(experiment_dict, env_name):
                     continue
                 asset_id = [x for x in asset_list if x['fileName'] == fileName][0]['assetId']
 
+                match2 = [x for x in asset_list if x['fileName'] == fileName2]
+                if len(match2) == 0:
+                    continue
+                asset_id2 = [x for x in asset_list if x['fileName'] == fileName2][0]['assetId']
+
                 # Now we get the asset
                 scales = experiment.get_asset(asset_id, return_type="json")
+                scales2 = experiment.get_asset(asset_id2, return_type="json")
                 #print(scales)
                 log_scale = np.mean(np.log(np.array(scales)))
+                log_scale2 = np.mean(np.log(np.array(scales2)))
                 avg_log_scales[step - 1, i] += log_scale
+                avg_log_scales2[step - 1, i] += log_scale2
 
         #print(avg_log_scales)
         mean = np.mean(avg_log_scales, axis=1)
         std = np.std(avg_log_scales, axis=1)
 
+        mean2 = np.mean(avg_log_scales2, axis=1)
+        std2 = np.std(avg_log_scales2, axis=1)
+
         axs.plot(x_axis, mean)
         axs.fill_between(x_axis, mean - std, mean + std, alpha=0.25)
-    axs.legend(axs.get_lines(), experiment_dict.keys(), prop={'size': 10}, title="Hidden Dimension")
+
+        axs.plot(x_axis, mean2)
+        axs.fill_between(x_axis, mean2 - std2, mean2 + std2, alpha=0.25)
+
+    axs.legend(axs.get_lines(), experiment_dict.keys(), prop={'size': 10}, title="Lookback")
     fig.savefig("log_scale_plots/" + env_name.replace(" ", "_") + "_log_scale_over_training.pdf")
 
 
@@ -128,9 +144,9 @@ if __name__ == "__main__":
     # make_log_scale_plots(walker_dict, "Walker")
     # make_log_scale_plots(hopper_dict, "Hopper")
     #make_log_scale_plots(ant_dict, "Ant")
-    make_log_scale_plots(hopper_dict2, "07-22-20 Hopper")
-    make_log_scale_plots(walker_dict2, "07-22-20 Walker")
-    make_log_scale_plots(halfcheetah_dict2, "07-22-20 Half Cheetah")
+    make_log_scale_plots(hopper_dict2, "07-29-20 Hopper")
+    make_log_scale_plots(walker_dict2, "07-29-20 Walker")
+    make_log_scale_plots(halfcheetah_dict2, "07-29-20 Half Cheetah")
 
 
 
