@@ -198,7 +198,7 @@ class ARRL(object):
             actor_path = "models/sac_actor_{}_{}".format(env_name, suffix)
         if critic_path is None:
             critic_path = "models/sac_critic_{}_{}".format(env_name, suffix)
-        print('Saving models to {} and {}'.format(actor_path, critic_path))
+        #print('Saving models to {} and {}'.format(actor_path, critic_path))
         torch.save(self.policy.state_dict(), actor_path)
         torch.save(self.critic.state_dict(), critic_path)
 
@@ -209,3 +209,4 @@ class ARRL(object):
             self.policy.load_state_dict(torch.load(actor_path))
         if critic_path is not None:
             self.critic.load_state_dict(torch.load(critic_path))
+

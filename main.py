@@ -1,6 +1,7 @@
 # import this before torch
 from comet_ml import Experiment
 
+import os
 import argparse
 import gym
 import numpy as np
@@ -8,8 +9,6 @@ import itertools
 import torch
 import json
 from arrl import ARRL
-from pylint.test.functional import return_in_init
-from tensorboardX import SummaryWriter
 from replay_buffer import ReplayBuffer
 
 parser = argparse.ArgumentParser(description='PyTorch AutoRegressiveFlows-RL Args')
@@ -61,7 +60,7 @@ parser.add_argument('--restrict_base_output', type=float, default=0.0001, metava
 parser.add_argument('--position_only', type=bool, default=False, metavar='G',
                     help="Determines whether or not we only use the Mujoco positions versus the entire state. This " +
                          "argument is ignored if pixel_based is True.")
-parser.add_argument('--pixel_based', type=bool, default=True, metavar='G',
+parser.add_argument('--pixel_based', type=bool, default=False, metavar='G',
                     help='Uses a pixel based state as opposed to position/velocity vectors. Do not use with use_prev_states=True')
 parser.add_argument('--resolution', type=int, default=64, metavar='G',
                     help='Decides the resolution of the pixel based image. Default is 64x64.')
@@ -76,9 +75,9 @@ parser.add_argument('--hidden_size', type=int, default=256, metavar='N',
                     help='hidden size (default: 256)')
 parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
                     help='model updates per simulator step (default: 1)')
-parser.add_argument('--start_steps', type=int, default=10000, metavar='N',
+parser.add_argument('--start_steps', type=int, default=5000, metavar='N',
                     help='Steps sampling random actions (default: 10000)')
-parser.add_argument('--eval_steps', type=int, default=10000, metavar='N',
+parser.add_argument('--eval_steps', type=int, default=5000, metavar='N',
                     help='Steps between each evaluation episode')
 parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
                     help='Value target update per no. of updates per step (default: 1)')
@@ -86,7 +85,17 @@ parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
                     help='size of replay buffer (default: 10000000)')
 parser.add_argument('--cuda', action="store_true", default=False,
                     help='run on CUDA (default: False)')
+parser.add_argument('--device_id', type=int, default=0, metavar='G',
+                    help='Which GPU to run on')
 args = parser.parse_args()
+
+if args.device_id == None:
+    args.cuda = False
+else:
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.device_id)
+    torch.cuda.set_device(0)
+
 
 with open('models/' + args.env_name + '_parser_args_' + str(args.action_lookback_actor) + '.txt', 'w') as f:
     json.dump(args.__dict__, f, indent=2)
@@ -295,10 +304,10 @@ with experiment.train():
                 eval_dicts.append(episode_eval_dict)
                 experiment.log_asset_data(eval_dicts, name="output_metrics", step=int(total_numsteps / args.eval_steps), overwrite=True)
                 # Log the model every 5 eval episodes
-                if int(total_numsteps / args.eval_steps) % 5 == 0:
+                if int(total_numsteps / args.eval_steps) % 5 == 1:
                     evl = str(int(total_numsteps / args.eval_steps))
-                    act_path = "models/" + args.env_name + "_actor_eval_" + evl + ".model"
-                    crt_path = "models/" + args.env_name + "_critic_eval_" + evl + ".model"
+                    act_path = "models/actor_eval_" + evl + ".model"
+                    crt_path = "models/critic_eval_" + evl + ".model"
                     agent.save_model(args.env_name, actor_path=act_path, critic_path=crt_path)
                     experiment.log_asset(act_path)
                     experiment.log_asset(crt_path)
@@ -331,11 +340,11 @@ with experiment.train():
 
 # Save the final model before finishing program
 agent.save_model(args.env_name,
-                 actor_path="models/" + args.env_name + "_actor.model",
-                 critic_path="models/" + args.env_name + "_critic.model")
+                 actor_path="models/actor.model",
+                 critic_path="models/critic.model")
 
 # Log the models to comet in case we want to use them later.
-experiment.log_asset("models/" + args.env_name + "_actor.model")
-experiment.log_asset("models/" + args.env_name + "_critic.model")
+experiment.log_asset("models/actor.model")
+experiment.log_asset("models/critic.model")
 
 env.close()
