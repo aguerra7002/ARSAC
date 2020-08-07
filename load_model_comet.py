@@ -33,7 +33,7 @@ args.__dict__ = args_dict
 env = gym.make(args.env_name)
 if args.pixel_based:
     import mujoco_py
-    env.env.viewer = mujoco_py.MjViewer(env.env.sim)
+    env.env.viewer = mujoco_py.MjRenderContextOffscreen(env.env.sim, 0)
 
 # Action Space Size
 action_space_size = env.action_space.sample().shape[0]

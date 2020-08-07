@@ -104,7 +104,7 @@ with open('models/' + args.env_name + '_parser_args_' + str(args.action_lookback
 env = gym.make(args.env_name)
 if args.pixel_based:
     import mujoco_py
-    env.env.viewer = mujoco_py.MjViewer(env.env.sim)
+    env.env.viewer = mujoco_py.MjRenderContextOffscreen(env.env.sim, 0)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 env.seed(args.seed)
