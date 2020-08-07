@@ -34,11 +34,11 @@ parser.add_argument('--use_gated_transform', type=bool, default=False, metavar='
                     help='Use Inverse Autoregressive Flow')
 parser.add_argument('--ignore_scale', type=bool, default=False, metavar='G',
                     help='Causes normal autoregressive flow to only have a shift component')
-parser.add_argument('--state_lookback_actor', type=int, default=3, metavar='G',
+parser.add_argument('--state_lookback_actor', type=int, default=0, metavar='G',
                     help='Determines whether or not to use previous states as well as actions in actor network')
 parser.add_argument('--action_lookback_actor', type=int, default=3, metavar='G',
                     help='Use phi network to de-correlate time dependence and state by using previous action(s)')
-parser.add_argument('--state_lookback_critic', type=int, default=3, metavar='G',
+parser.add_argument('--state_lookback_critic', type=int, default=0, metavar='G',
                     help='Determines how many states we look back when estimating rewards')
 parser.add_argument('--action_lookback_critic', type=int, default=3, metavar='G',
                     help='Determines how many actions we look back when estimating rewards')
@@ -61,7 +61,7 @@ parser.add_argument('--restrict_base_output', type=float, default=0.0001, metava
 parser.add_argument('--position_only', type=bool, default=False, metavar='G',
                     help="Determines whether or not we only use the Mujoco positions versus the entire state. This " +
                          "argument is ignored if pixel_based is True.")
-parser.add_argument('--pixel_based', type=bool, default=True, metavar='G',
+parser.add_argument('--pixel_based', type=bool, default=False, metavar='G',
                     help='Uses a pixel based state as opposed to position/velocity vectors. Do not use with use_prev_states=True')
 parser.add_argument('--resolution', type=int, default=64, metavar='G',
                     help='Decides the resolution of the pixel based image. Default is 64x64.')
@@ -76,9 +76,9 @@ parser.add_argument('--hidden_size', type=int, default=256, metavar='N',
                     help='hidden size (default: 256)')
 parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
                     help='model updates per simulator step (default: 1)')
-parser.add_argument('--start_steps', type=int, default=10000, metavar='N',
+parser.add_argument('--start_steps', type=int, default=5000, metavar='N',
                     help='Steps sampling random actions (default: 10000)')
-parser.add_argument('--eval_steps', type=int, default=10000, metavar='N',
+parser.add_argument('--eval_steps', type=int, default=5000, metavar='N',
                     help='Steps between each evaluation episode')
 parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
                     help='Value target update per no. of updates per step (default: 1)')
@@ -138,6 +138,9 @@ experiment.log_parameters(args.__dict__)
 # Memory
 memory = ReplayBuffer(args.replay_size)
 
+# Will hold ALL of our results and will be what we log to comet
+eval_dicts = []
+
 # Training Loop
 total_numsteps = 0
 updates = 0
@@ -166,7 +169,7 @@ with experiment.train():
             prev_states = None
 
         while not done:
-            print(total_numsteps)
+            #print(total_numsteps)
             if args.start_steps > total_numsteps:
                 action = env.action_space.sample()  # Sample random action
             else:
@@ -250,7 +253,7 @@ with experiment.train():
 
                         if action_lookback > 0:
                             prev_actions_eval = np.concatenate((prev_actions_eval[action_space_size:], action_eval))
-                        if args.state_lookback > 0:
+                        if state_lookback > 0:
                             prev_states_eval = np.concatenate((prev_states_eval[state_space_size:], state_eval))
                         # Before we step in the environment, save the Mujoco state (qpos and qvel)
                         episode_eval_dict['qpos'].append(env.sim.get_state()[1].tolist()) # qpos
@@ -286,11 +289,22 @@ with experiment.train():
                                       step=int(total_numsteps / args.eval_steps))
 
                 # Log the episode reward to Comet.ml
-                for item_str in episode_eval_dict.keys():
-                    item = episode_eval_dict[item_str]
-                    json_str = json.dumps(item, separators=(",", ":"), ensure_ascii=False).encode('utf8')
-                    item_name = 'episode_step_' + str(total_numsteps) + "_" + item_str
-                    experiment.log_asset_data(item, name=item_name, step=int(total_numsteps / args.eval_steps))
+                # Add the episode_dict
+                eval_dicts.append(episode_eval_dict)
+                experiment.log_asset_data(eval_dicts, name="output_metrics", step=int(total_numsteps / args.eval_steps), overwrite=True)
+                # Log the model every 5 eval episodes
+                if int(total_numsteps / args.eval_steps) % 5 == 1:
+                    evl = str(int(total_numsteps / args.eval_steps))
+                    act_path = "models/" + args.env_name + "_actor_eval_" + evl + ".model"
+                    crt_path = "models/" + args.env_name + "_critic_eval_" + evl + ".model"
+                    agent.save_model(args.env_name, actor_path=act_path, critic_path=crt_path)
+                    experiment.log_asset(act_path)
+                    experiment.log_asset(crt_path)
+                # for item_str in episode_eval_dict.keys():
+                #     item = episode_eval_dict[item_str]
+                #     json_str = json.dumps(item, separators=(",", ":"), ensure_ascii=False).encode('utf8')
+                #     item_name = 'episode_step_' + str(total_numsteps) + "_" + item_str
+                #     experiment.log_asset_data(item, name=item_name, step=int(total_numsteps / args.eval_steps))
 
                 # print("----------------------------------------")
                 # print("Test Episodes: {}, Avg. Reward: {}".format(episodes_eval, round(avg_reward_eval, 2)))
@@ -315,11 +329,11 @@ with experiment.train():
 
 # Save the final model before finishing program
 agent.save_model(args.env_name,
-                 actor_path="models/" + args.env_name + "_actor_" + str(action_lookback) + ".model",
-                 critic_path="models/" + args.env_name + "_critic_" + str(action_lookback) + ".model")
+                 actor_path="models/" + args.env_name + "_actor.model",
+                 critic_path="models/" + args.env_name + "_critic.model")
 
 # Log the models to comet in case we want to use them later.
-experiment.log_asset("models/" + args.env_name + "_actor_" + str(action_lookback) + ".model")
-experiment.log_asset("models/" + args.env_name + "_critic_" + str(action_lookback) + ".model")
+experiment.log_asset("models/" + args.env_name + "_actor.model")
+experiment.log_asset("models/" + args.env_name + "_critic.model")
 
 env.close()
