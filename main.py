@@ -134,6 +134,8 @@ agent = ARRL(state_space_size, env.action_space, args)
 experiment = Experiment(api_key="tHDbEydFQGW7F1MWmIKlEvrly",
                         project_name="arsac_test", workspace="aguerra")
 experiment.log_parameters(args.__dict__)
+json_str = json.dumps(args.__dict__)
+experiment.log_asset_data(json_str, name="args")
 
 # Memory
 memory = ReplayBuffer(args.replay_size)
@@ -293,7 +295,7 @@ with experiment.train():
                 eval_dicts.append(episode_eval_dict)
                 experiment.log_asset_data(eval_dicts, name="output_metrics", step=int(total_numsteps / args.eval_steps), overwrite=True)
                 # Log the model every 5 eval episodes
-                if int(total_numsteps / args.eval_steps) % 5 == 1:
+                if int(total_numsteps / args.eval_steps) % 5 == 0:
                     evl = str(int(total_numsteps / args.eval_steps))
                     act_path = "models/" + args.env_name + "_actor_eval_" + evl + ".model"
                     crt_path = "models/" + args.env_name + "_critic_eval_" + evl + ".model"
