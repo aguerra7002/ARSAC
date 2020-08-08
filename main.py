@@ -89,9 +89,10 @@ parser.add_argument('--device_id', type=int, default=0, metavar='G',
                     help='Which GPU to run on')
 args = parser.parse_args()
 
-if args.device_id == None:
+if args.device_id is None:
     args.cuda = False
 else:
+    args.cuda = True
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.device_id)
     torch.cuda.set_device(0)
