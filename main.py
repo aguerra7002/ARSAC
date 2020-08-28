@@ -1,6 +1,5 @@
 # import this before torch
 from comet_ml import Experiment
-
 import os
 import argparse
 import gym
@@ -10,6 +9,7 @@ import torch
 import json
 from arrl import ARRL
 from replay_buffer import ReplayBuffer
+from pixelstate import PixelState
 
 parser = argparse.ArgumentParser(description='PyTorch AutoRegressiveFlows-RL Args')
 # Once we get Mujoco then we will use this one
@@ -67,15 +67,15 @@ parser.add_argument('--resolution', type=int, default=64, metavar='G',
 #######################################################
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
-parser.add_argument('--batch_size', type=int, default=256, metavar='N',
-                    help='batch size (default: 256)')
+parser.add_argument('--batch_size', type=int, default=128, metavar='N',
+                    help='batch size (default: 128)')
 parser.add_argument('--num_steps', type=int, default=1000000, metavar='N',
                     help='maximum number of steps (default: 1000000)')
 parser.add_argument('--hidden_size', type=int, default=256, metavar='N',
                     help='hidden size (default: 256)')
 parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
                     help='model updates per simulator step (default: 1)')
-parser.add_argument('--start_steps', type=int, default=10000, metavar='N',
+parser.add_argument('--start_steps', type=int, default=256, metavar='N',
                     help='Steps sampling random actions (default: 10000)')
 parser.add_argument('--eval_steps', type=int, default=10000, metavar='N',
                     help='Steps between each evaluation episode')
@@ -105,19 +105,20 @@ with open('models/' + args.env_name + '_parser_args_' + str(args.action_lookback
 env = gym.make(args.env_name)
 if args.pixel_based:
     import mujoco_py
-    env.env.viewer = mujoco_py.MjRenderContextOffscreen(env.env.sim, 0)
+    # env.env.viewer = mujoco_py.MjRenderContextOffscreen(env.env.sim, 0)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 env.seed(args.seed)
 action_space_size = env.action_space.sample().shape[0]
 
 if args.pixel_based:
-    state_space_size = 3 # Corresponding to number of channels. Maybe change to be more adaptable?
+    state_space_size = env.sim.get_state().flatten().shape[0]
 elif args.position_only:
     state_space_size = env.sim.get_state().qpos.shape[0]
 else:
     state_space_size = env.reset().shape[0]
 
+import time # TODO: This is for profiling only. Remove later
 
 # Function for getting the state we will use for training. If temp_state is not provided, will reset environment
 def get_state(temp_state=None):
@@ -128,8 +129,10 @@ def get_state(temp_state=None):
         ret = temp_state
 
     if args.pixel_based:
-        ret = env.env.sim.render(camera_name='track', width=args.resolution, height=args.resolution, depth=False)
-        ret = ret.reshape((ret.shape[2], ret.shape[1], ret.shape[0]))
+        #ret = env.env.sim.render(camera_name='track', width=args.resolution, height=args.resolution, depth=False)
+        #ret = ret.reshape((ret.shape[2], ret.shape[1], ret.shape[0]))
+        # This will be the state we store in the buffer to reduce memory use
+        ret = env.sim.get_state().flatten()
     elif args.position_only:
         ret = env.sim.get_state().qpos  # Just the position
 
@@ -147,6 +150,10 @@ experiment.log_parameters(args.__dict__)
 json_str = json.dumps(args.__dict__)
 experiment.log_asset_data(json_str, name="args")
 
+# This will be what we use to get image states for the main loop. The updating parameter uses a multithreaded version of this class
+if args.pixel_based:
+    state_getter_main = PixelState(1, args.env_name, args.resolution, state_space_size)
+
 # Memory
 memory = ReplayBuffer(args.replay_size)
 
@@ -158,6 +165,11 @@ total_numsteps = 0
 updates = 0
 stop_training = False
 
+action_lookback = max(args.action_lookback_actor, args.action_lookback_critic)
+state_lookback = max(args.state_lookback_actor, args.state_lookback_critic)
+
+torch.backends.cudnn.benchmark = False
+
 with experiment.train():
     for i_episode in itertools.count(1):
 
@@ -165,53 +177,71 @@ with experiment.train():
         episode_steps = 0
         done = False
         state = get_state(temp_state=None)
-        action_lookback = max(args.action_lookback_actor, args.action_lookback_critic)
-        state_lookback = max(args.state_lookback_actor, args.state_lookback_critic)
+
         # Reset the previous action, as our program factors this into account when taking future actions
         if action_lookback > 0:
             prev_actions = np.zeros(action_space_size * action_lookback)
         else:
             prev_actions = None
         if state_lookback > 0:
-            if args.pixel_based:
-                prev_states = np.zeros((state_space_size * state_lookback, args.resolution, args.resolution))
-            else:
-                prev_states = np.zeros(state_space_size * state_lookback)
+            prev_states = np.zeros(state_space_size * state_lookback)
         else:
             prev_states = None
 
         while not done:
-            #print(total_numsteps)
+            print("Step #:", total_numsteps)
+            prev_time = time.time() # TODO: Remove later
+            s_time = prev_time
+
             if args.start_steps > total_numsteps:
                 action = env.action_space.sample()  # Sample random action
             else:
 
                 # Sample action from policy, adding noise to state if we want to
-                action = agent.select_action(state, prev_states, prev_actions, random_base=args.random_base_train)
+                # If pixel based we need to get the image
+                if args.pixel_based:
+                    state_n = state_getter_main.get_pixel_state(state, batch=False)
+                    if state_lookback > 0:
+                        prev_states_n = state_getter_main.get_pixel_state(prev_states, batch=False)
+                    else:
+                        prev_states_n = prev_states
+                    action = agent.select_action(state_n, prev_states_n, prev_actions, random_base=args.random_base_train)
+                else:
+                    action = agent.select_action(state, prev_states, prev_actions, random_base=args.random_base_train)
 
-            if len(memory) > args.batch_size:
+            # print("select action:", time.time() - prev_time) # TODO: Remove later
+            # prev_time = time.time()
+            if len(memory) > args.start_steps: #args.batch_size * :
                 # Number of updates per step in environment
                 for i in range(args.updates_per_step):
                     # Update parameters of all the networks
-                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory,
-                                                                                                         args.batch_size,
-                                                                                                         updates)
-
+                    # print("update params:")  # TODO: Remove later
+                    # What we had before
+                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates)
                     # Log to Comet.ml
                     # experiment.log_metric("Critic_1_Loss", critic_1_loss, step=updates)
                     # experiment.log_metric("Critic_2_Loss", critic_2_loss, step=updates)
                     # experiment.log_metric("Policy_Loss", policy_loss, step=updates)
                     # experiment.log_metric("Entropy_Loss", ent_loss, step=updates)
+                    # Put it on a different thread
+                    #threads.append(threading.Thread(target=agent.update_parameters, args=(memory, args.batch_size, updates)))
+                    # Start the new thread
+                    #threads[-1].start()
 
                     updates += 1
+
+            prev_time = time.time() # TODO: REmove later
 
             action_noise = np.random.normal(0, 0.1, action_space_size) if args.add_action_noise else 0
             # Take a step in the environment. Note, we get the next state in the following line in case we only want pos
             tmp_st, reward, done, _ = env.step(action + action_noise)  # Step
             next_state = get_state(temp_state=tmp_st)
 
+            # print("get state:", time.time() - prev_time)  # TODO: Remove later
+            # prev_time = time.time()
+
             # Add state noise if that parameter is true
-            next_state += np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0
+            #next_state += np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0
             episode_steps += 1
             total_numsteps += 1
             episode_reward += reward
@@ -228,6 +258,9 @@ with experiment.train():
                 prev_states = np.concatenate((prev_states[state_space_size:], state))
 
             state = next_state
+
+            # print("other stuff:", time.time() - prev_time)  # TODO: Remove later
+            # prev_time = time.time()
 
             # # Do an eval episode every <eval_steps> steps
             if total_numsteps % args.eval_steps == 0:  # and total_numsteps >= args.start_steps:
@@ -248,10 +281,7 @@ with experiment.train():
                     else:
                         prev_actions_eval = None
                     if state_lookback > 0:
-                        if args.pixel_based:
-                            prev_states_eval = np.zeros((state_space_size * state_lookback, args.resolution, args.resolution))
-                        else:
-                            prev_states_eval = np.zeros(state_space_size * state_lookback)
+                        prev_states_eval = np.zeros(state_space_size * state_lookback)
                     else:
                         prev_states_eval = None
 
@@ -259,8 +289,17 @@ with experiment.train():
                     done_eval = False
                     while not done_eval:
                         # Sample action from policy, this time taking the mean action
-                        action_eval, bmean, bstd, ascle, ashft = \
-                            agent.select_action(state_eval, prev_states_eval, prev_actions_eval,
+                        if args.pixel_based:
+                            # If we are doing pixel_based, get the pixel image
+                            prev_states_eval_n = state_getter_main.get_pixel_state(prev_states, batch=False)
+                            state_eval_n = state_getter_main.get_pixel_state(state, batch=False)
+                            action_eval, bmean, bstd, ascle, ashft = \
+                                agent.select_action(state_eval_n, prev_states_eval_n, prev_actions_eval,
+                                                    eval=True, return_distribution=True,
+                                                    random_base=args.random_base_eval)
+                        else:
+                            action_eval, bmean, bstd, ascle, ashft = \
+                                agent.select_action(state_eval, prev_states_eval, prev_actions_eval,
                                                 eval=True, return_distribution=True, random_base=args.random_base_eval)
 
                         if action_lookback > 0:
@@ -328,7 +367,7 @@ with experiment.train():
             if total_numsteps >= args.num_steps:
                 stop_training = True
                 break
-
+            print("Step time: ", time.time() - s_time)
         # Log to comet.ml
         experiment.log_metric("Episode_Reward", episode_reward, step=i_episode)
         # Log to console

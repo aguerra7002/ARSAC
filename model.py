@@ -46,7 +46,8 @@ class ConvQNetwork(nn.Module):
         self.conv2 = nn.Conv2d(32, 64, 4, stride=2)
         self.conv3 = nn.Conv2d(64, 128, 4, stride=2)
         self.conv4 = nn.Conv2d(128, 256, 4, stride=2)
-        self.linear1 = nn.Linear(2 * 2 * 256 + num_actions * (action_lookback + 1), hidden_dim)
+        # The 64 represents the batch size
+        self.linear1 = nn.Linear(4 * 256 + num_actions * (action_lookback + 1), hidden_dim)
         self.linear2 = nn.Linear(hidden_dim, hidden_dim)
         self.linear3 = nn.Linear(hidden_dim, 1)
 
@@ -55,7 +56,8 @@ class ConvQNetwork(nn.Module):
         self.conv6 = nn.Conv2d(32, 64, 4, stride=2)
         self.conv7 = nn.Conv2d(64, 128, 4, stride=2)
         self.conv8 = nn.Conv2d(128, 256, 4, stride=2)
-        self.linear4 = nn.Linear(2 * 2 * 256 + (num_actions * (action_lookback + 1)), hidden_dim)
+        # The 64 represents the batch size
+        self.linear4 = nn.Linear(4 * 256 + (num_actions * (action_lookback + 1)), hidden_dim)
         self.linear5 = nn.Linear(hidden_dim, hidden_dim)
         self.linear6 = nn.Linear(hidden_dim, 1)
 
@@ -158,8 +160,8 @@ class GaussianPolicy(nn.Module):
             self.conv3 = nn.Conv2d(64, 128, 4, stride=2)
             self.conv4 = nn.Conv2d(128, 256, 4, stride=2)
             # TODO: Add in some way to change the size of these layers via 'hidden_dim_base' param
-            self.mean_linear_theta = nn.Linear(2 * 2 * 256, num_actions)
-            self.log_std_linear_theta = nn.Linear(2 * 2 * 256, num_actions)
+            self.mean_linear_theta = nn.Linear(4 * 256, num_actions)
+            self.log_std_linear_theta = nn.Linear(4 * 256, num_actions)
 
         self.state_space_size = num_inputs
         self.action_space_size = num_actions
