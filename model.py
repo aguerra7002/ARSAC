@@ -141,6 +141,7 @@ class QNetwork(nn.Module):
 
 
 class GaussianPolicy(nn.Module):
+
     def __init__(self, num_inputs, num_actions, hidden_dim, action_space=None,
                  action_lookback=0, state_lookback=False, use_gated_transform=False, ignore_scale=False,
                  hidden_dim_base=256, pixel_based=False):
@@ -175,7 +176,7 @@ class GaussianPolicy(nn.Module):
         self.ignore_scale = ignore_scale
 
         if action_lookback > 0:
-            self.linear_phi_1 = nn.Linear(action_space.shape[0] * action_lookback, hidden_dim)
+            self.linear_phi_1 = nn.Linear(num_actions * action_lookback, hidden_dim)
             self.linear_phi_2 = nn.Linear(hidden_dim, hidden_dim)
 
             self.log_scale_linear_phi = nn.Linear(hidden_dim, num_actions)

@@ -3,17 +3,17 @@ import threading
 import gym
 import numpy as np
 import mujoco_py
+from env_wrapper import EnvWrapper
 
 
 class PixelState:
     env = None
 
-    def __init__(self, num_threads, env_name, resolution, state_size):
+    def __init__(self, num_threads, env_name, task_name, resolution, state_size):
         # Number of threads to use
         self.num_threads = num_threads
         if PixelState.env is None:
-            PixelState.env = gym.make(env_name)
-            PixelState.env.env.viewer = mujoco_py.MjRenderContextOffscreen(PixelState.env.env.sim, 0)
+            PixelState.env = EnvWrapper(env_name, task_name, True, resolution)
         # Determine state size
         self.state_size = state_size
         # Determine qpos size
@@ -27,9 +27,7 @@ class PixelState:
         res = np.zeros((state_minibatch.shape[0], 3 * lb, self.resolution, self.resolution))
         for j, states in enumerate(state_minibatch):
             for l, state in enumerate(np.array_split(states, lb)):
-                PixelState.env.sim.set_state_from_flattened(state)
-                img = PixelState.env.env.sim.render(camera_name='track', width=self.resolution, height=self.resolution, depth=False)
-                res[j, 3 * l:3 * (l + 1)] = (img.reshape((img.shape[2], img.shape[1], img.shape[0])) / 255) - 0.5
+                res[j, 3 * l:3 * (l + 1)] = PixelState.env.flattened_to_pixel(state)
         thread_ret[i] = res
 
     def get_pixel_state(self, state_batch, batch=True):
@@ -50,9 +48,5 @@ class PixelState:
             lb = int(state_batch.shape[0] / self.state_size)
             res = np.zeros((3 * lb, self.resolution, self.resolution))
             for l, state in enumerate(np.array_split(state_batch, lb)):
-                PixelState.env.sim.set_state_from_flattened(state)
-                img = PixelState.env.env.sim.render(camera_name='track', width=self.resolution, height=self.resolution,
-                                                    depth=False)
-                img = img.reshape((img.shape[2], img.shape[1], img.shape[0]))
-                res[3 * l:3 * (l + 1)] = (img / 255) - 0.5
+                res[3 * l:3 * (l + 1)] = PixelState.env.flattened_to_pixel(state)
             return res

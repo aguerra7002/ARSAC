@@ -231,10 +231,21 @@ class ARRL(object):
         torch.save(self.critic.state_dict(), critic_path)
 
     # Load model parameters
-    def load_model(self, actor_path, critic_path):
+    def load_model(self, actor_path, critic_path, flow_only=False):
         print('Loading models from {} and {}'.format(actor_path, critic_path))
         if actor_path is not None:
-            self.policy.load_state_dict(torch.load(actor_path))
+            loaded_dict = torch.load(actor_path)
+            if flow_only:
+                # Only load the flow network
+                for key in self.policy.state_dict().keys():
+                    # We can identify a component of the flow network bc they contain the string "phi"
+                    if "phi" in key:
+                        if key in loaded_dict.keys():
+                            self.policy.state_dict()[key] = loaded_dict[key]
+                        else:
+                            print("Uh-oh: Key", key, "not found in the loaded dict.")
+            else:
+                self.policy.load_state_dict(loaded_dict)
         if critic_path is not None:
             self.critic.load_state_dict(torch.load(critic_path))
 

@@ -1,96 +1,46 @@
-# import this before torch
+
+from comet_ml.api import API
 from comet_ml import Experiment
 import os
 import argparse
+import gym
 import numpy as np
 import itertools
-import torch
 import json
+import torch
 from arrl import ARRL
 from replay_buffer import ReplayBuffer
 from pixelstate import PixelState
-from env_wrapper import EnvWrapper
+import time
 
-parser = argparse.ArgumentParser(description='PyTorch AutoRegressiveFlows-RL Args')
-# Once we get Mujoco then we will use this one
-parser.add_argument('--env-name', default="HalfCheetah-v2",
-                    help='Mujoco Gym environment (default: HalfCheetah-v2)')
-parser.add_argument('--task-name', default=None,
-                    help='Task name to use in the Deepmind control suite. Leave Blank to use Gym environments')
-parser.add_argument('--policy', default="Gaussian",
-                    help='Policy Type: Gaussian | Deterministic (default: Gaussian)')
-parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
-                    help='discount factor for reward (default: 0.99)')
-parser.add_argument('--tau', type=float, default=0.005, metavar='G',
-                    help='target smoothing coefficient(τ) (default: 0.005)')
-parser.add_argument('--lr', type=float, default=0.0003, metavar='G',
-                    help='learning rate (default: 0.0003)')
-parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
-                    help='Temperature parameter α determines the relative importance of the entropy\
-                            term against the reward (default: 0.2)')
-parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, metavar='G',
-                    help='Automatically adjust α (default: False)')
-################ Specific to ARSAC ####################
-parser.add_argument('--use_gated_transform', type=bool, default=False, metavar='G',
-                    help='Use Inverse Autoregressive Flow')
-parser.add_argument('--ignore_scale', type=bool, default=False, metavar='G',
-                    help='Causes normal autoregressive flow to only have a shift component')
-parser.add_argument('--state_lookback_actor', type=int, default=0, metavar='G',
-                    help='Determines whether or not to use previous states as well as actions in actor network')
-parser.add_argument('--action_lookback_actor', type=int, default=3, metavar='G',
-                    help='Use phi network to de-correlate time dependence and state by using previous action(s)')
-parser.add_argument('--state_lookback_critic', type=int, default=0, metavar='G',
-                    help='Determines how many states we look back when estimating rewards')
-parser.add_argument('--action_lookback_critic', type=int, default=0, metavar='G',
-                    help='Determines how many actions we look back when estimating rewards')
-parser.add_argument('--add_state_noise', type=bool, default=False, metavar='G',
-                    help='Adds a small amount of Gaussian noise to the state')
-parser.add_argument('--add_action_noise', type=bool, default=False, metavar='G',
-                    help='Adds a small amount of Gaussian noise to the actions')
-parser.add_argument('--random_base_train', type=bool, default=False, metavar='G',
-                    help='Uses a standard Gaussian for the base distribution during training.')
-parser.add_argument('--random_base_eval', type=bool, default=False, metavar='G',
-                    help='Uses a standard Gaussian for the base distribution during eval episodes.')
-parser.add_argument('--hidden_dim_base', type=int, default=32, metavar='G',
-                    help='Determines how many hidden units to use for the hidden layer of the state mapping')
-parser.add_argument('--lambda_reg', type=float, default=0.0, metavar='G',
-                    help='How much regularization to use in base network.')
-parser.add_argument('--use_l2_reg', type=bool, default=True, metavar='G',
-                    help="Uses l2 regularization on state-action policy if true, otherwise uses l1 regularization")
-parser.add_argument('--restrict_base_output', type=float, default=0.0001, metavar='G',
-                    help="Restricts output of base network by adding loss based on norm of network output")
-parser.add_argument('--position_only', type=bool, default=False, metavar='G',
-                    help="Determines whether or not we only use the Mujoco positions versus the entire state. This " +
-                         "argument is ignored if pixel_based is True.")
-parser.add_argument('--pixel_based', type=bool, default=False, metavar='G',
-                    help='Uses a pixel based state as opposed to position/velocity vectors. Do not use with use_prev_states=True')
-parser.add_argument('--resolution', type=int, default=64, metavar='G',
-                    help='Decides the resolution of the pixel based image. Default is 64x64.')
-#######################################################
-parser.add_argument('--seed', type=int, default=123456, metavar='N',
-                    help='random seed (default: 123456)')
-parser.add_argument('--batch_size', type=int, default=128, metavar='N',
-                    help='batch size (default: 128)')
-parser.add_argument('--num_steps', type=int, default=1000000, metavar='N',
-                    help='maximum number of steps (default: 1000000)')
-parser.add_argument('--hidden_size', type=int, default=256, metavar='N',
-                    help='hidden size (default: 256)')
-parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
-                    help='model updates per simulator step (default: 1)')
-parser.add_argument('--start_steps', type=int, default=256, metavar='N',
-                    help='Steps sampling random actions (default: 10000)')
-parser.add_argument('--eval_steps', type=int, default=10000, metavar='N',
-                    help='Steps between each evaluation episode')
-parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
-                    help='Value target update per no. of updates per step (default: 1)')
-parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
-                    help='size of replay buffer (default: 10000000)')
-parser.add_argument('--cuda', action="store_true", default=False,
-                    help='run on CUDA (default: False)')
-parser.add_argument('--device_id', type=int, default=0, metavar='G',
-                    help='Which GPU to run on')
+# comet
+api_key = 'tHDbEydFQGW7F1MWmIKlEvrly'
+
+workspace = 'aguerra'
+project_name = 'arsac'
+comet_api = API(api_key=api_key)
+
+# PUT THE NAME OF THE FILE WE WANT TO SAVE HERE
+actor_filename = "actor.model"
+critic_filename = "critic.model"
+# PUT THE EXPERIMENT KEY HERE
+experiment_id = "3a3130304fb84aac8ecef054f3a371c6"
+# Tranfer task name here
+transfer_task = "HalfCheetah-v2"
+
+base_experiment = comet_api.get_experiment(project_name=project_name,
+                                                  workspace=workspace,
+                                                  experiment=experiment_id)
+asset_list = base_experiment.get_asset_list()
+
+# First setup the arguments
+args_asset_id = [x for x in asset_list if x['fileName'] == "args"][0]['assetId']
+args_dict = base_experiment.get_asset(args_asset_id, return_type="json")
+parser = argparse.ArgumentParser(description='PyTorch AutoRegressiveFlows-RL Transferred Args')
 args = parser.parse_args()
+args.__dict__ = args_dict
 
+# Setup Cuda
 if args.device_id is None:
     args.cuda = False
 else:
@@ -99,27 +49,39 @@ else:
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.device_id)
     torch.cuda.set_device(0)
 
+# Next we setup the environment
+# TODO: Check that this environment state/action space matches that of the one we are transferring from
+env = gym.make(transfer_task)
 
-with open('models/' + args.env_name + '_parser_args_' + str(args.action_lookback_actor) + '.txt', 'w') as f:
-    json.dump(args.__dict__, f, indent=2)
-
-# Use our environment wrapper for making the environment
-env = EnvWrapper(args.env_name, args.task_name, args.pixel_based, args.resolution)
-torch.manual_seed(args.seed)
-np.random.seed(args.seed)
-env.seed(args.seed)
+# Action Space Size
 action_space_size = env.action_space.sample().shape[0]
 
+# Figure out what the state size is
 if args.pixel_based:
-    state_space_size = env.sim.get_state().flatten().shape[0]
+    state_space_size = 3 # Corresponding to number of channels. Maybe change to be more adaptable?
 elif args.position_only:
     state_space_size = env.sim.get_state().qpos.shape[0]
 else:
     state_space_size = env.reset().shape[0]
 
-import time # TODO: This is for profiling only. Remove later
 
-# Function for getting the state we will use for training. If temp_state is not provided, will reset environment
+# Now initialize the agent
+agent = ARRL(state_space_size, env.action_space, args)
+
+# Here is the transfer component. For now, we only transfer the actor.
+actor_asset_id = [x for x in asset_list if actor_filename == x['fileName']][0]['assetId']
+#critic_asset_id = [x for x in asset_list if critic_filename == x['fileName']][0]['assetId']
+actor = base_experiment.get_asset(actor_asset_id)
+#critic = experiment.get_asset(critic_asset_id)
+act_path = 'tmploaded/actor.model'
+#crt_path = 'tmploaded/critic.model'
+with open(act_path, 'wb+') as f:
+    f.write(actor)
+#with open(crt_path, 'wb+') as f:
+#    f.write(critic)
+agent.load_model(act_path, None, flow_only=True)
+
+# Function for getting the state we will use for storing. If temp_state is not provided, will reset environment
 def get_state(temp_state=None):
 
     if temp_state is None:
@@ -128,6 +90,8 @@ def get_state(temp_state=None):
         ret = temp_state
 
     if args.pixel_based:
+        #ret = env.env.sim.render(camera_name='track', width=args.resolution, height=args.resolution, depth=False)
+        #ret = ret.reshape((ret.shape[2], ret.shape[1], ret.shape[0]))
         # This will be the state we store in the buffer to reduce memory use
         ret = env.sim.get_state().flatten()
     elif args.position_only:
@@ -136,13 +100,9 @@ def get_state(temp_state=None):
     # Return the state, adding noise if args say we should
     return ret + (np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0)
 
-
-# Agent
-agent = ARRL(state_space_size, env.action_space, args)
-
-# Comet logging
-experiment = Experiment(api_key="tHDbEydFQGW7F1MWmIKlEvrly",
-                        project_name="arsac_test", workspace="aguerra")
+# Comet logging. Note we are starting a new experiment now
+experiment = Experiment(api_key=api_key,
+                        project_name=project_name, workspace=workspace)
 experiment.log_parameters(args.__dict__)
 json_str = json.dumps(args.__dict__)
 experiment.log_asset_data(json_str, name="args")
@@ -242,7 +202,7 @@ with experiment.train():
             episode_reward += reward
 
             # Ignore the "done" signal if it comes from hitting the time horizon.
-            mask = 1 if episode_steps == env.max_episode_steps else float(not done)
+            mask = 1 if episode_steps == env._max_episode_steps else float(not done)
 
             # Append transition to memory
             memory.push(prev_states, prev_actions, state, action, reward, next_state, mask)
@@ -260,7 +220,7 @@ with experiment.train():
             # # Do an eval episode every <eval_steps> steps
             if total_numsteps % args.eval_steps == 0:  # and total_numsteps >= args.start_steps:
                 # Save the environment state of the run we were just doing.
-                temp_state = env.get_state_before_eval()
+                temp_state = env.sim.get_state()
                 avg_reward_eval = 0.
                 episodes_eval = 1  # Only do 1 episode for each evaluation. If you do more will screw up logging.
 
@@ -302,8 +262,8 @@ with experiment.train():
                         if state_lookback > 0:
                             prev_states_eval = np.concatenate((prev_states_eval[state_space_size:], state_eval))
                         # Before we step in the environment, save the Mujoco state (qpos and qvel)
-                        # episode_eval_dict['qpos'].append(env.sim.get_state()[1].tolist()) # qpos
-                        # episode_eval_dict['qvel'].append(env.sim.get_state()[2].tolist()) # qvel
+                        episode_eval_dict['qpos'].append(env.sim.get_state()[1].tolist()) # qpos
+                        episode_eval_dict['qvel'].append(env.sim.get_state()[2].tolist()) # qvel
                         # Now we step forward in the environment by taking our action
                         action_noise_eval = np.random.normal(0, 0.1, action_space_size) if args.add_action_noise else 0
                         tmp_st_eval, reward_eval, done_eval, _ = env.step(action_eval + action_noise_eval)
@@ -357,7 +317,7 @@ with experiment.train():
                 # print("----------------------------------------")
 
                 # Now we are done evaluating. Before we leave, we have to set the state properly.
-                env.set_state_after_eval(temp_state)
+                env.sim.set_state(temp_state)
 
             if total_numsteps >= args.num_steps:
                 stop_training = True
@@ -383,3 +343,4 @@ experiment.log_asset("models/actor.model")
 experiment.log_asset("models/critic.model")
 
 env.close()
+
