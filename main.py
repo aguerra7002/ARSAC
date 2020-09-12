@@ -13,9 +13,9 @@ from env_wrapper import EnvWrapper
 
 parser = argparse.ArgumentParser(description='PyTorch AutoRegressiveFlows-RL Args')
 # Once we get Mujoco then we will use this one
-parser.add_argument('--env-name', default="HalfCheetah-v2",
+parser.add_argument('--env-name', default="walker",
                     help='Mujoco Gym environment (default: HalfCheetah-v2)')
-parser.add_argument('--task-name', default=None,
+parser.add_argument('--task-name', default="walk",
                     help='Task name to use in the Deepmind control suite. Leave Blank to use Gym environments')
 parser.add_argument('--policy', default="Gaussian",
                     help='Policy Type: Gaussian | Deterministic (default: Gaussian)')
@@ -25,7 +25,7 @@ parser.add_argument('--tau', type=float, default=0.005, metavar='G',
                     help='target smoothing coefficient(τ) (default: 0.005)')
 parser.add_argument('--lr', type=float, default=0.0003, metavar='G',
                     help='learning rate (default: 0.0003)')
-parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
+parser.add_argument('--alpha', type=float, default=0.03, metavar='G',
                     help='Temperature parameter α determines the relative importance of the entropy\
                             term against the reward (default: 0.2)')
 parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, metavar='G',
@@ -35,13 +35,13 @@ parser.add_argument('--use_gated_transform', type=bool, default=False, metavar='
                     help='Use Inverse Autoregressive Flow')
 parser.add_argument('--ignore_scale', type=bool, default=False, metavar='G',
                     help='Causes normal autoregressive flow to only have a shift component')
-parser.add_argument('--state_lookback_actor', type=int, default=0, metavar='G',
+parser.add_argument('--state_lookback_actor', type=int, default=3, metavar='G',
                     help='Determines whether or not to use previous states as well as actions in actor network')
 parser.add_argument('--action_lookback_actor', type=int, default=3, metavar='G',
                     help='Use phi network to de-correlate time dependence and state by using previous action(s)')
-parser.add_argument('--state_lookback_critic', type=int, default=0, metavar='G',
+parser.add_argument('--state_lookback_critic', type=int, default=3, metavar='G',
                     help='Determines how many states we look back when estimating rewards')
-parser.add_argument('--action_lookback_critic', type=int, default=0, metavar='G',
+parser.add_argument('--action_lookback_critic', type=int, default=3, metavar='G',
                     help='Determines how many actions we look back when estimating rewards')
 parser.add_argument('--add_state_noise', type=bool, default=False, metavar='G',
                     help='Adds a small amount of Gaussian noise to the state')
@@ -62,7 +62,7 @@ parser.add_argument('--restrict_base_output', type=float, default=0.0001, metava
 parser.add_argument('--position_only', type=bool, default=False, metavar='G',
                     help="Determines whether or not we only use the Mujoco positions versus the entire state. This " +
                          "argument is ignored if pixel_based is True.")
-parser.add_argument('--pixel_based', type=bool, default=False, metavar='G',
+parser.add_argument('--pixel_based', type=bool, default=True, metavar='G',
                     help='Uses a pixel based state as opposed to position/velocity vectors. Do not use with use_prev_states=True')
 parser.add_argument('--resolution', type=int, default=64, metavar='G',
                     help='Decides the resolution of the pixel based image. Default is 64x64.')
@@ -99,10 +99,6 @@ else:
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.device_id)
     torch.cuda.set_device(0)
 
-
-with open('models/' + args.env_name + '_parser_args_' + str(args.action_lookback_actor) + '.txt', 'w') as f:
-    json.dump(args.__dict__, f, indent=2)
-
 # Use our environment wrapper for making the environment
 env = EnvWrapper(args.env_name, args.task_name, args.pixel_based, args.resolution)
 torch.manual_seed(args.seed)
@@ -110,32 +106,10 @@ np.random.seed(args.seed)
 env.seed(args.seed)
 action_space_size = env.action_space.sample().shape[0]
 
-if args.pixel_based:
-    state_space_size = env.sim.get_state().flatten().shape[0]
-elif args.position_only:
-    state_space_size = env.sim.get_state().qpos.shape[0]
-else:
-    state_space_size = env.reset().shape[0]
+
+state_space_size = env.get_state_space_size(position_only=args.position_only)
 
 import time # TODO: This is for profiling only. Remove later
-
-# Function for getting the state we will use for training. If temp_state is not provided, will reset environment
-def get_state(temp_state=None):
-
-    if temp_state is None:
-        ret = env.reset() # Will reset the environment
-    else:
-        ret = temp_state
-
-    if args.pixel_based:
-        # This will be the state we store in the buffer to reduce memory use
-        ret = env.sim.get_state().flatten()
-    elif args.position_only:
-        ret = env.sim.get_state().qpos  # Just the position
-
-    # Return the state, adding noise if args say we should
-    return ret + (np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0)
-
 
 # Agent
 agent = ARRL(state_space_size, env.action_space, args)
@@ -149,7 +123,7 @@ experiment.log_asset_data(json_str, name="args")
 
 # This will be what we use to get image states for the main loop. The updating parameter uses a multithreaded version of this class
 if args.pixel_based:
-    state_getter_main = PixelState(1, args.env_name, args.resolution, state_space_size)
+    state_getter_main = PixelState(1, args.env_name, args.task_name, args.resolution, state_space_size)
 
 # Memory
 memory = ReplayBuffer(args.replay_size)
@@ -171,7 +145,7 @@ with experiment.train():
         episode_reward = 0
         episode_steps = 0
         done = False
-        state = get_state(temp_state=None)
+        state = env.get_current_state(temp_state=None, position_only=args.position_only)
 
         # Reset the previous action, as our program factors this into account when taking future actions
         if action_lookback > 0:
@@ -213,6 +187,7 @@ with experiment.train():
                     # print("update params:")  # TODO: Remove later
                     # What we had before
                     critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates)
+                    # print("Entropy Parameter", alpha)
                     # Log to Comet.ml
                     # experiment.log_metric("Critic_1_Loss", critic_1_loss, step=updates)
                     # experiment.log_metric("Critic_2_Loss", critic_2_loss, step=updates)
@@ -230,7 +205,7 @@ with experiment.train():
             action_noise = np.random.normal(0, 0.1, action_space_size) if args.add_action_noise else 0
             # Take a step in the environment. Note, we get the next state in the following line in case we only want pos
             tmp_st, reward, done, _ = env.step(action + action_noise)  # Step
-            next_state = get_state(temp_state=tmp_st)
+            next_state = env.get_current_state(temp_state=tmp_st, position_only=args.position_only)
 
             # print("get state:", time.time() - prev_time)  # TODO: Remove later
             # prev_time = time.time()
@@ -269,7 +244,7 @@ with experiment.train():
                                      'base_mean': [], 'base_std': [], 'adj_scale': [], 'adj_shift': []}
 
                 for _ in range(episodes_eval):
-                    state_eval = get_state(temp_state=None)
+                    state_eval = env.get_current_state(temp_state=None, position_only=args.position_only)
 
                     if action_lookback > 0:
                         prev_actions_eval = np.zeros(action_space_size * action_lookback)
@@ -307,7 +282,7 @@ with experiment.train():
                         # Now we step forward in the environment by taking our action
                         action_noise_eval = np.random.normal(0, 0.1, action_space_size) if args.add_action_noise else 0
                         tmp_st_eval, reward_eval, done_eval, _ = env.step(action_eval + action_noise_eval)
-                        next_state_eval = get_state(temp_state=tmp_st_eval)
+                        next_state_eval = env.get_current_state(temp_state=tmp_st_eval, position_only=args.position_only)
                         # Add state noise if that parameter is true
                         next_state_eval += np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0
                         # We have completed an evaluation step, now log it to the dictionary

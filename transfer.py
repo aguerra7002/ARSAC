@@ -3,7 +3,6 @@ from comet_ml.api import API
 from comet_ml import Experiment
 import os
 import argparse
-import gym
 import numpy as np
 import itertools
 import json
@@ -11,6 +10,7 @@ import torch
 from arrl import ARRL
 from replay_buffer import ReplayBuffer
 from pixelstate import PixelState
+from env_wrapper import EnvWrapper
 import time
 
 # comet
@@ -23,10 +23,11 @@ comet_api = API(api_key=api_key)
 # PUT THE NAME OF THE FILE WE WANT TO SAVE HERE
 actor_filename = "actor.model"
 critic_filename = "critic.model"
-# PUT THE EXPERIMENT KEY HERE
-experiment_id = "3a3130304fb84aac8ecef054f3a371c6"
-# Tranfer task name here
-transfer_task = "HalfCheetah-v2"
+# PUT THE EXPERIMENT KEY HERE OF THE EXPERIMENT WE WANT TO TRANSFER FROM
+experiment_id = "157216c90f8e400bab5264211ede1646"
+# Tranfer domain/task names go here. For gym environments, just use domain, set task to None.
+transfer_domain = "walker"
+transfer_task = "run"
 
 base_experiment = comet_api.get_experiment(project_name=project_name,
                                                   workspace=workspace,
@@ -51,19 +52,16 @@ else:
 
 # Next we setup the environment
 # TODO: Check that this environment state/action space matches that of the one we are transferring from
-env = gym.make(transfer_task)
-
+assert transfer_domain == args.env_name
+env = EnvWrapper(transfer_domain, transfer_task, args.pixel_based, args.resolution)
+torch.manual_seed(args.seed)
+np.random.seed(args.seed)
+env.seed(args.seed)
 # Action Space Size
 action_space_size = env.action_space.sample().shape[0]
 
 # Figure out what the state size is
-if args.pixel_based:
-    state_space_size = 3 # Corresponding to number of channels. Maybe change to be more adaptable?
-elif args.position_only:
-    state_space_size = env.sim.get_state().qpos.shape[0]
-else:
-    state_space_size = env.reset().shape[0]
-
+state_space_size = env.get_state_space_size(position_only=args.position_only)
 
 # Now initialize the agent
 agent = ARRL(state_space_size, env.action_space, args)
@@ -80,25 +78,6 @@ with open(act_path, 'wb+') as f:
 #with open(crt_path, 'wb+') as f:
 #    f.write(critic)
 agent.load_model(act_path, None, flow_only=True)
-
-# Function for getting the state we will use for storing. If temp_state is not provided, will reset environment
-def get_state(temp_state=None):
-
-    if temp_state is None:
-        ret = env.reset() # Will reset the environment
-    else:
-        ret = temp_state
-
-    if args.pixel_based:
-        #ret = env.env.sim.render(camera_name='track', width=args.resolution, height=args.resolution, depth=False)
-        #ret = ret.reshape((ret.shape[2], ret.shape[1], ret.shape[0]))
-        # This will be the state we store in the buffer to reduce memory use
-        ret = env.sim.get_state().flatten()
-    elif args.position_only:
-        ret = env.sim.get_state().qpos  # Just the position
-
-    # Return the state, adding noise if args say we should
-    return ret + (np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0)
 
 # Comet logging. Note we are starting a new experiment now
 experiment = Experiment(api_key=api_key,
@@ -131,7 +110,7 @@ with experiment.train():
         episode_reward = 0
         episode_steps = 0
         done = False
-        state = get_state(temp_state=None)
+        state = env.get_current_state(temp_state=None, position_only=args.position_only)
 
         # Reset the previous action, as our program factors this into account when taking future actions
         if action_lookback > 0:
@@ -173,6 +152,7 @@ with experiment.train():
                     # print("update params:")  # TODO: Remove later
                     # What we had before
                     critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates)
+                    # print("Entropy Parameter", alpha)
                     # Log to Comet.ml
                     # experiment.log_metric("Critic_1_Loss", critic_1_loss, step=updates)
                     # experiment.log_metric("Critic_2_Loss", critic_2_loss, step=updates)
@@ -190,7 +170,7 @@ with experiment.train():
             action_noise = np.random.normal(0, 0.1, action_space_size) if args.add_action_noise else 0
             # Take a step in the environment. Note, we get the next state in the following line in case we only want pos
             tmp_st, reward, done, _ = env.step(action + action_noise)  # Step
-            next_state = get_state(temp_state=tmp_st)
+            next_state = env.get_current_state(temp_state=tmp_st, position_only=args.position_only)
 
             # print("get state:", time.time() - prev_time)  # TODO: Remove later
             # prev_time = time.time()
@@ -202,7 +182,7 @@ with experiment.train():
             episode_reward += reward
 
             # Ignore the "done" signal if it comes from hitting the time horizon.
-            mask = 1 if episode_steps == env._max_episode_steps else float(not done)
+            mask = 1 if episode_steps == env.max_episode_steps else float(not done)
 
             # Append transition to memory
             memory.push(prev_states, prev_actions, state, action, reward, next_state, mask)
@@ -220,7 +200,7 @@ with experiment.train():
             # # Do an eval episode every <eval_steps> steps
             if total_numsteps % args.eval_steps == 0:  # and total_numsteps >= args.start_steps:
                 # Save the environment state of the run we were just doing.
-                temp_state = env.sim.get_state()
+                temp_state = env.get_state_before_eval()
                 avg_reward_eval = 0.
                 episodes_eval = 1  # Only do 1 episode for each evaluation. If you do more will screw up logging.
 
@@ -229,7 +209,7 @@ with experiment.train():
                                      'base_mean': [], 'base_std': [], 'adj_scale': [], 'adj_shift': []}
 
                 for _ in range(episodes_eval):
-                    state_eval = get_state(temp_state=None)
+                    state_eval = env.get_current_state(temp_state=None, position_only=args.position_only)
 
                     if action_lookback > 0:
                         prev_actions_eval = np.zeros(action_space_size * action_lookback)
@@ -262,12 +242,12 @@ with experiment.train():
                         if state_lookback > 0:
                             prev_states_eval = np.concatenate((prev_states_eval[state_space_size:], state_eval))
                         # Before we step in the environment, save the Mujoco state (qpos and qvel)
-                        episode_eval_dict['qpos'].append(env.sim.get_state()[1].tolist()) # qpos
-                        episode_eval_dict['qvel'].append(env.sim.get_state()[2].tolist()) # qvel
+                        # episode_eval_dict['qpos'].append(env.sim.get_state()[1].tolist()) # qpos
+                        # episode_eval_dict['qvel'].append(env.sim.get_state()[2].tolist()) # qvel
                         # Now we step forward in the environment by taking our action
                         action_noise_eval = np.random.normal(0, 0.1, action_space_size) if args.add_action_noise else 0
                         tmp_st_eval, reward_eval, done_eval, _ = env.step(action_eval + action_noise_eval)
-                        next_state_eval = get_state(temp_state=tmp_st_eval)
+                        next_state_eval = env.get_current_state(temp_state=tmp_st_eval, position_only=args.position_only)
                         # Add state noise if that parameter is true
                         next_state_eval += np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0
                         # We have completed an evaluation step, now log it to the dictionary
@@ -317,7 +297,7 @@ with experiment.train():
                 # print("----------------------------------------")
 
                 # Now we are done evaluating. Before we leave, we have to set the state properly.
-                env.sim.set_state(temp_state)
+                env.set_state_after_eval(temp_state)
 
             if total_numsteps >= args.num_steps:
                 stop_training = True
@@ -343,4 +323,3 @@ experiment.log_asset("models/actor.model")
 experiment.log_asset("models/critic.model")
 
 env.close()
-

@@ -17,17 +17,21 @@ class PixelState:
         # Determine state size
         self.state_size = state_size
         # Determine qpos size
-        self.qpos_size = PixelState.env.sim.data.qpos.shape[0]
+        self.qpos_size = PixelState.env.get_state_space_size(position_only=True)
         # Resolution of Pixel images we will get
         self.resolution = resolution
-        pass
 
     def thread_get_pixel_state(self, i, state_minibatch, thread_ret):
         lb = int(state_minibatch.shape[1] / self.state_size)
         res = np.zeros((state_minibatch.shape[0], 3 * lb, self.resolution, self.resolution))
+        print("Start")
         for j, states in enumerate(state_minibatch):
+            print("J", j)
             for l, state in enumerate(np.array_split(states, lb)):
-                res[j, 3 * l:3 * (l + 1)] = PixelState.env.flattened_to_pixel(state)
+                print("L", l)
+                img = PixelState.env.flattened_to_pixel(state)
+                print("IMG", img.shape)
+                res[j, 3 * l:3 * (l + 1)] = img
         thread_ret[i] = res
 
     def get_pixel_state(self, state_batch, batch=True):
@@ -42,6 +46,8 @@ class PixelState:
             # Now join to wait until they are done
             for thread in threads:
                 thread.join()
+            # while thread_ret[0] is None:
+            #     print("None")
             return np.concatenate(thread_ret, axis=0)
         else:
             # If we are here we are just converting a single instance of a state(s) to image(s). No multithreading necessary.

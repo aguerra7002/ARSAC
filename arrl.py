@@ -35,7 +35,7 @@ class ARRL(object):
         self.pixel_based = args.pixel_based
 
         if args.pixel_based:
-            self.state_getter = PixelState(1, args.env_name, args.resolution, num_inputs)
+            self.state_getter = PixelState(1, args.env_name, args.task_name, args.resolution, num_inputs)
             self.critic = ConvQNetwork(3, self.state_lookback_critic, # 3 channels
                                        action_space.shape[0], self.action_lookback_critic,
                                        args.hidden_size).to(device=self.device)

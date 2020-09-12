@@ -1,5 +1,6 @@
 import gym
 from dm_control import suite
+from dm_control.suite.wrappers import pixels
 from gym.spaces import Box
 import dm_env
 import numpy as np
@@ -28,6 +29,8 @@ class EnvWrapper:
             self.env = suite.load(domain_name=domain, task_name=task)
             self.action_space = Box(low=self.env.action_spec().minimum, high=self.env.action_spec().maximum, dtype=np.float32)
             self.qpos_size = self.env.physics.data.qpos.shape[0]
+            # if pixel_based:
+            #     self.pixel_env = pixels.Wrapper(self.env, render_kwargs={"camera_id" : 0, "width" : res, "height": res})
             # This doesn't exist on dm_control, so let's just manually set it?
             self.max_episode_steps = 1000
 
@@ -37,7 +40,7 @@ class EnvWrapper:
         elif self.type == EnvWrapper.DM_CONTROL:
             step = self.env.step(action)
             # step.observation is too funky. qpos and qvel are the only things that are reliable.
-            state = np.concatenate((self.env.physics.data.qpos, self.env.physics.data.qvel))
+            state = self.flatten_obs(step.observation)
             reward = step.reward
             done = step.step_type is dm_env.StepType.LAST
             return state, reward, done, None
@@ -46,16 +49,15 @@ class EnvWrapper:
         if self.type == EnvWrapper.GYM:
             return self.env.reset()
         elif self.type == EnvWrapper.DM_CONTROL:
-            obs = self.env.reset()
-            return np.concatenate((self.env.physics.data.qpos, self.env.physics.data.qvel))
+            return self.flatten_obs(self.env.reset().observation)
 
-    def get_current_state(self, temp_state=None, position_only=False, flatten=False):
+    def get_current_state(self, temp_state=None, position_only=False):
         if temp_state is None:
             temp_state = self.reset()
 
         if self.type == EnvWrapper.GYM:
             # We need the flattened states for pixel based training
-            if flatten:
+            if self.pixel_based:
                 return self.env.sim.get_state().flatten()
             elif position_only:
                 return self.env.sim.get_state().qpos
@@ -63,7 +65,9 @@ class EnvWrapper:
             else:
                 return temp_state
         elif self.type == EnvWrapper.DM_CONTROL:
-            if position_only:
+            if self.pixel_based:
+                return np.concatenate((self.env.physics.data.qpos, self.env.physics.data.qvel))
+            elif position_only:
                 return self.env.physics.qpos
             # The flatten argument does not matter here, only for gym environments
             else:
@@ -105,6 +109,25 @@ class EnvWrapper:
                 self.env.physics.data.qpos[:] = before_eval_state[0]
                 self.env.physics.data.qvel[:] = before_eval_state[1]
                 self.env.physics.data.ctrl[:] = before_eval_state[2]
+
+    def get_state_space_size(self, position_only=False):
+        if self.type == EnvWrapper.GYM:
+            if self.pixel_based:
+                return self.env.sim.get_state().flatten().shape[0]
+            elif position_only:
+                return self.env.sim.get_state().qpos.shape[0]
+            else:
+                return self.env.reset().shape[0]
+        elif self.type == EnvWrapper.DM_CONTROL:
+            if self.pixel_based:
+                return self.env.physics.data.qpos.shape[0] + self.env.physics.data.qvel.shape[0]
+            elif position_only:
+                return self.env.physics.data.qpos.shape[0]
+            else:
+                return self.flatten_obs(self.env.task.get_observation(self.env.physics)).shape[0]
+
+    def flatten_obs(self, observation):
+        return np.hstack([np.array([observation[x]]).flatten() for x in observation])
 
     def close(self):
         # Same syntax in both situations
