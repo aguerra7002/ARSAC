@@ -13,9 +13,9 @@ from env_wrapper import EnvWrapper
 
 parser = argparse.ArgumentParser(description='PyTorch AutoRegressiveFlows-RL Args')
 # Once we get Mujoco then we will use this one
-parser.add_argument('--env-name', default="walker",
+parser.add_argument('--env-name', default="hopper",
                     help='Mujoco Gym environment (default: HalfCheetah-v2)')
-parser.add_argument('--task-name', default="walk",
+parser.add_argument('--task-name', default="hop",
                     help='Task name to use in the Deepmind control suite. Leave Blank to use Gym environments')
 parser.add_argument('--policy', default="Gaussian",
                     help='Policy Type: Gaussian | Deterministic (default: Gaussian)')
@@ -35,13 +35,13 @@ parser.add_argument('--use_gated_transform', type=bool, default=False, metavar='
                     help='Use Inverse Autoregressive Flow')
 parser.add_argument('--ignore_scale', type=bool, default=False, metavar='G',
                     help='Causes normal autoregressive flow to only have a shift component')
-parser.add_argument('--state_lookback_actor', type=int, default=3, metavar='G',
+parser.add_argument('--state_lookback_actor', type=int, default=0, metavar='G',
                     help='Determines whether or not to use previous states as well as actions in actor network')
-parser.add_argument('--action_lookback_actor', type=int, default=3, metavar='G',
+parser.add_argument('--action_lookback_actor', type=int, default=5, metavar='G',
                     help='Use phi network to de-correlate time dependence and state by using previous action(s)')
-parser.add_argument('--state_lookback_critic', type=int, default=3, metavar='G',
+parser.add_argument('--state_lookback_critic', type=int, default=0, metavar='G',
                     help='Determines how many states we look back when estimating rewards')
-parser.add_argument('--action_lookback_critic', type=int, default=3, metavar='G',
+parser.add_argument('--action_lookback_critic', type=int, default=0, metavar='G',
                     help='Determines how many actions we look back when estimating rewards')
 parser.add_argument('--add_state_noise', type=bool, default=False, metavar='G',
                     help='Adds a small amount of Gaussian noise to the state')
@@ -62,7 +62,7 @@ parser.add_argument('--restrict_base_output', type=float, default=0.0001, metava
 parser.add_argument('--position_only', type=bool, default=False, metavar='G',
                     help="Determines whether or not we only use the Mujoco positions versus the entire state. This " +
                          "argument is ignored if pixel_based is True.")
-parser.add_argument('--pixel_based', type=bool, default=True, metavar='G',
+parser.add_argument('--pixel_based', type=bool, default=False, metavar='G',
                     help='Uses a pixel based state as opposed to position/velocity vectors. Do not use with use_prev_states=True')
 parser.add_argument('--resolution', type=int, default=64, metavar='G',
                     help='Decides the resolution of the pixel based image. Default is 64x64.')
@@ -109,7 +109,10 @@ action_space_size = env.action_space.sample().shape[0]
 
 state_space_size = env.get_state_space_size(position_only=args.position_only)
 
-import time # TODO: This is for profiling only. Remove later
+# If we want to Time Profile
+PROFILING = False
+if PROFILING:
+    import time
 
 # Agent
 agent = ARRL(state_space_size, env.action_space, args)
@@ -158,9 +161,10 @@ with experiment.train():
             prev_states = None
 
         while not done:
-            # print("Step #:", total_numsteps)
-            # prev_time = time.time() # TODO: Remove later
-            # s_time = prev_time
+            if PROFILING:
+                print("Step #:", total_numsteps)
+                prev_time = time.time() # TODO: Remove later
+                s_time = prev_time
 
             if args.start_steps > total_numsteps:
                 action = env.action_space.sample()  # Sample random action
@@ -178,14 +182,14 @@ with experiment.train():
                 else:
                     action = agent.select_action(state, prev_states, prev_actions, random_base=args.random_base_train)
 
-            # print("select action:", time.time() - prev_time) # TODO: Remove later
-            # prev_time = time.time()
+            if PROFILING:
+                print("select action:", time.time() - prev_time) # TODO: Remove later
+                prev_time = time.time()
+
             if len(memory) > args.start_steps: #args.batch_size * :
                 # Number of updates per step in environment
                 for i in range(args.updates_per_step):
                     # Update parameters of all the networks
-                    # print("update params:")  # TODO: Remove later
-                    # What we had before
                     critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates)
                     # print("Entropy Parameter", alpha)
                     # Log to Comet.ml
@@ -200,15 +204,17 @@ with experiment.train():
 
                     updates += 1
 
-            prev_time = time.time() # TODO: REmove later
+            if PROFILING:
+                prev_time = time.time() # TODO: REmove later
 
             action_noise = np.random.normal(0, 0.1, action_space_size) if args.add_action_noise else 0
             # Take a step in the environment. Note, we get the next state in the following line in case we only want pos
             tmp_st, reward, done, _ = env.step(action + action_noise)  # Step
             next_state = env.get_current_state(temp_state=tmp_st, position_only=args.position_only)
 
-            # print("get state:", time.time() - prev_time)  # TODO: Remove later
-            # prev_time = time.time()
+            if PROFILING:
+                print("get state:", time.time() - prev_time)  # TODO: Remove later
+                prev_time = time.time()
 
             # Add state noise if that parameter is true
             #next_state += np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0
@@ -229,8 +235,9 @@ with experiment.train():
 
             state = next_state
 
-            # print("other stuff:", time.time() - prev_time)  # TODO: Remove later
-            # prev_time = time.time()
+            if PROFILING:
+                print("other stuff:", time.time() - prev_time)  # TODO: Remove later
+                prev_time = time.time()
 
             # # Do an eval episode every <eval_steps> steps
             if total_numsteps % args.eval_steps == 0:  # and total_numsteps >= args.start_steps:
@@ -288,7 +295,10 @@ with experiment.train():
                         # We have completed an evaluation step, now log it to the dictionary
                         # episode_eval_dict['state'].append(state_eval.tolist())
                         # episode_eval_dict['action'].append(action_eval.tolist())
-                        episode_eval_dict['reward'].append(reward_eval.tolist())
+                        if type(reward_eval) is float:
+                            episode_eval_dict['reward'].append([reward_eval])
+                        else:
+                            episode_eval_dict['reward'].append(reward_eval.tolist())
                         # Also add stats about the output of our neural networks:
                         episode_eval_dict['base_mean'].append(bmean.tolist())
                         episode_eval_dict['base_std'].append(bstd.tolist())
@@ -337,7 +347,9 @@ with experiment.train():
             if total_numsteps >= args.num_steps:
                 stop_training = True
                 break
-            # print("Step time: ", time.time() - s_time)
+
+            if PROFILING:
+                print("Step time: ", time.time() - s_time)
         # Log to comet.ml
         experiment.log_metric("Episode_Reward", episode_reward, step=i_episode)
         # Log to console

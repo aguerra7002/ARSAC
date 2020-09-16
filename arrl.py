@@ -7,6 +7,10 @@ from utils import soft_update, hard_update
 from pixelstate import PixelState
 from model import GaussianPolicy, QNetwork, DeterministicPolicy, ConvQNetwork
 
+# If we want to Time Profile
+PROFILING = False
+if PROFILING:
+    import time
 
 class ARRL(object):
     def __init__(self, num_inputs, action_space, args):
@@ -109,8 +113,9 @@ class ARRL(object):
 
     def update_parameters(self, memory, batch_size, updates):
         # Sample a batch from memory
-        import time
-        prev_time = time.time() # TODO: Remove later
+        if PROFILING:
+            print("update parameters")
+            prev_time = time.time()
 
         prev_state_batch, prev_action_batch, state_batch, action_batch, reward_batch, next_state_batch, mask_batch = \
             memory.sample(batch_size=batch_size)
@@ -120,8 +125,9 @@ class ARRL(object):
             if None not in prev_state_batch:
                 prev_state_batch = self.state_getter.get_pixel_state(prev_state_batch)
 
-        # print("\tBatch Sample:", time.time() - prev_time)  # TODO: Remove later
-        # prev_time = time.time()
+        if PROFILING:
+            print("\tBatch Sample:", time.time() - prev_time)
+            prev_time = time.time()
 
         prev_next_state_batch = None
         prev_next_action_batch = None
@@ -146,8 +152,9 @@ class ARRL(object):
         reward_batch = torch.FloatTensor(reward_batch).to(self.device).unsqueeze_(1)
         mask_batch = torch.FloatTensor(mask_batch).to(self.device).unsqueeze_(1)
 
-        # print("\tSetup:", time.time() - prev_time)  # TODO: Remove later
-        # prev_time = time.time()
+        if PROFILING:
+            print("\tSetup:", time.time() - prev_time)
+            prev_time = time.time()
 
         with torch.no_grad():
             next_state_action, next_state_log_pi, _ = \
@@ -157,8 +164,9 @@ class ARRL(object):
             min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
             next_q_value = reward_batch + mask_batch * self.gamma * min_qf_next_target
 
-            # print("\tAct and Critic:", time.time() - prev_time)  # TODO: Remove later
-            # prev_time = time.time()
+            if PROFILING:
+                print("\tAct and Critic:", time.time() - prev_time)
+                prev_time = time.time()
 
         # Two Q-functions to mitigate positive bias in the policy improvement step
         qf1, qf2 = self.critic(state_batch, action_batch, prev_state_batch, prev_action_batch)
@@ -175,8 +183,9 @@ class ARRL(object):
         # Add in regularization to policy here.
         policy_loss += self.policy.get_reg_loss(lambda_reg=self.lambda_reg, use_l2_reg=self.use_l2_reg)
 
-        # print("\tCritic Loss:", time.time() - prev_time)  # TODO: Remove later
-        # prev_time = time.time()
+        if PROFILING:
+            print("\tCritic Loss:", time.time() - prev_time)
+            prev_time = time.time()
 
         # Add loss if we choose to restrict the output of the network
         if self.restrict_base_output > 0.0:
@@ -212,8 +221,9 @@ class ARRL(object):
         if updates % self.target_update_interval == 0:
             soft_update(self.critic_target, self.critic, self.tau)
 
-        # print("\tBackprop:", time.time() - prev_time)  # TODO: Remove later
-        # prev_time = time.time()
+        if PROFILING:
+            print("\tBackprop:", time.time() - prev_time)  # TODO: Remove later
+            prev_time = time.time()
 
         return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item()
 
