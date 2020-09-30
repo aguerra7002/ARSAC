@@ -1,5 +1,4 @@
 import threading
-# from concurrent.futures.thread import ThreadPoolExecutor # TODO Try something using this
 import gym
 import numpy as np
 import mujoco_py

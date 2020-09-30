@@ -12,8 +12,6 @@ class EnvWrapper:
     GYM = "gym"
     DM_CONTROL = "dm_control"
 
-    new_env = None
-
     def __init__(self, domain, task, pixel_based=False, res=64):
         self.type = EnvWrapper.GYM if task is None else EnvWrapper.DM_CONTROL
         self.domain = domain
@@ -29,7 +27,6 @@ class EnvWrapper:
             self.max_episode_steps = self.env._max_episode_steps
         elif self.type == EnvWrapper.DM_CONTROL:
             self.env = suite.load(domain_name=domain, task_name=task)
-            EnvWrapper.new_env = suite.load(domain_name=domain, task_name=task)
             self.action_space = Box(low=self.env.action_spec().minimum, high=self.env.action_spec().maximum, dtype=np.float32)
             self.qpos_size = self.env.physics.data.qpos.shape[0]
             # if pixel_based:
@@ -94,7 +91,6 @@ class EnvWrapper:
                 new_env.physics.data.qvel[:] = qvel_n  # velocity
             # Then render the image
             img = new_env.physics.render(camera_id=0, width=self.resolution, height=self.resolution)
-            new_env.close()
             # Transpose dimensions and scale between -1/2 and 1/2
             return (img.transpose((2, 0, 1)) / 255) - 0.5
 

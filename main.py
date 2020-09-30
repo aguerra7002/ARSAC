@@ -13,9 +13,9 @@ from env_wrapper import EnvWrapper
 
 parser = argparse.ArgumentParser(description='PyTorch AutoRegressiveFlows-RL Args')
 # Once we get Mujoco then we will use this one
-parser.add_argument('--env-name', default="hopper",
+parser.add_argument('--env-name', default="walker",
                     help='Mujoco Gym environment (default: HalfCheetah-v2)')
-parser.add_argument('--task-name', default="hop",
+parser.add_argument('--task-name', default="run",
                     help='Task name to use in the Deepmind control suite. Leave Blank to use Gym environments')
 parser.add_argument('--policy', default="Gaussian",
                     help='Policy Type: Gaussian | Deterministic (default: Gaussian)')
@@ -35,13 +35,13 @@ parser.add_argument('--use_gated_transform', type=bool, default=False, metavar='
                     help='Use Inverse Autoregressive Flow')
 parser.add_argument('--ignore_scale', type=bool, default=False, metavar='G',
                     help='Causes normal autoregressive flow to only have a shift component')
-parser.add_argument('--state_lookback_actor', type=int, default=0, metavar='G',
+parser.add_argument('--state_lookback_actor', type=int, default=3, metavar='G',
                     help='Determines whether or not to use previous states as well as actions in actor network')
-parser.add_argument('--action_lookback_actor', type=int, default=5, metavar='G',
+parser.add_argument('--action_lookback_actor', type=int, default=3, metavar='G',
                     help='Use phi network to de-correlate time dependence and state by using previous action(s)')
-parser.add_argument('--state_lookback_critic', type=int, default=0, metavar='G',
+parser.add_argument('--state_lookback_critic', type=int, default=3, metavar='G',
                     help='Determines how many states we look back when estimating rewards')
-parser.add_argument('--action_lookback_critic', type=int, default=0, metavar='G',
+parser.add_argument('--action_lookback_critic', type=int, default=3, metavar='G',
                     help='Determines how many actions we look back when estimating rewards')
 parser.add_argument('--add_state_noise', type=bool, default=False, metavar='G',
                     help='Adds a small amount of Gaussian noise to the state')
@@ -62,7 +62,7 @@ parser.add_argument('--restrict_base_output', type=float, default=0.0001, metava
 parser.add_argument('--position_only', type=bool, default=False, metavar='G',
                     help="Determines whether or not we only use the Mujoco positions versus the entire state. This " +
                          "argument is ignored if pixel_based is True.")
-parser.add_argument('--pixel_based', type=bool, default=False, metavar='G',
+parser.add_argument('--pixel_based', type=bool, default=True, metavar='G',
                     help='Uses a pixel based state as opposed to position/velocity vectors. Do not use with use_prev_states=True')
 parser.add_argument('--resolution', type=int, default=64, metavar='G',
                     help='Decides the resolution of the pixel based image. Default is 64x64.')

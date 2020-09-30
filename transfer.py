@@ -28,6 +28,9 @@ experiment_id = "157216c90f8e400bab5264211ede1646"
 # Tranfer domain/task names go here. For gym environments, just use domain, set task to None.
 transfer_domain = "walker"
 transfer_task = "run"
+# Adjust these to determine what component of the policy gets transferred.
+transfer_flow = True
+transfer_base = True
 
 base_experiment = comet_api.get_experiment(project_name=project_name,
                                                   workspace=workspace,
@@ -77,7 +80,7 @@ with open(act_path, 'wb+') as f:
     f.write(actor)
 #with open(crt_path, 'wb+') as f:
 #    f.write(critic)
-agent.load_model(act_path, None, flow_only=True)
+agent.load_model(act_path, None, flow_only=transfer_flow, base_only=transfer_base)
 
 # Comet logging. Note we are starting a new experiment now
 experiment = Experiment(api_key=api_key,
