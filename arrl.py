@@ -8,7 +8,7 @@ from pixelstate import PixelState
 from model import GaussianPolicy, QNetwork, DeterministicPolicy, ConvQNetwork
 
 # If we want to Time Profile
-PROFILING = False
+PROFILING = True
 if PROFILING:
     import time
 

@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser(description='PyTorch AutoRegressiveFlows-RL Arg
 # Once we get Mujoco then we will use this one
 parser.add_argument('--env-name', default="walker",
                     help='Mujoco Gym environment (default: HalfCheetah-v2)')
-parser.add_argument('--task-name', default="run",
+parser.add_argument('--task-name', default="walk",
                     help='Task name to use in the Deepmind control suite. Leave Blank to use Gym environments')
 parser.add_argument('--policy', default="Gaussian",
                     help='Policy Type: Gaussian | Deterministic (default: Gaussian)')
@@ -110,7 +110,7 @@ action_space_size = env.action_space.sample().shape[0]
 state_space_size = env.get_state_space_size(position_only=args.position_only)
 
 # If we want to Time Profile
-PROFILING = False
+PROFILING = True
 if PROFILING:
     import time
 

@@ -85,12 +85,12 @@ class EnvWrapper:
             qpos_n = flattened[:self.qpos_size]
             qvel_n = flattened[self.qpos_size:]
             # Set the state to the position/velocity
-            new_env = suite.load(domain_name=self.domain, task_name=self.task)
-            with new_env.physics.reset_context():
-                new_env.physics.data.qpos[:] = qpos_n  # Set  position ,
-                new_env.physics.data.qvel[:] = qvel_n  # velocity
+            #new_env = suite.load(domain_name=self.domain, task_name=self.task)
+            with self.env.physics.reset_context():
+                self.env.physics.data.qpos[:] = qpos_n  # Set  position ,
+                self.env.physics.data.qvel[:] = qvel_n  # velocity
             # Then render the image
-            img = new_env.physics.render(camera_id=0, width=self.resolution, height=self.resolution)
+            img = self.env.physics.render(camera_id=0, width=self.resolution, height=self.resolution)
             # Transpose dimensions and scale between -1/2 and 1/2
             return (img.transpose((2, 0, 1)) / 255) - 0.5
 

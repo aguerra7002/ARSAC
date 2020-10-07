@@ -29,7 +29,7 @@ class PixelState:
                 res[j, 3 * l:3 * (l + 1)] = img
         thread_ret[i] = res
 
-    def get_pixel_state(self, state_batch, batch=True, parallel=True):
+    def get_pixel_state(self, state_batch, batch=True, parallel=False):
         if batch:
             if parallel:
                 minibatches = np.array_split(state_batch, self.num_threads)
