@@ -147,6 +147,12 @@ with experiment.train():
 
         episode_reward = 0
         episode_steps = 0
+        # This will be used to plot the log std/scale parameters
+        bstds = []
+        ascales = []
+        critic_1_losses = []
+        critic_2_losses = []
+        policy_losses = []
         done = False
         state = env.get_current_state(temp_state=None, position_only=args.position_only)
 
@@ -178,10 +184,15 @@ with experiment.train():
                         prev_states_n = state_getter_main.get_pixel_state(prev_states, batch=False)
                     else:
                         prev_states_n = prev_states
-                    action = agent.select_action(state_n, prev_states_n, prev_actions, random_base=args.random_base_train)
+                    action, bmean, bstd, ascle, ashft = agent.select_action(state_n, prev_states_n, prev_actions,
+                                                 random_base=args.random_base_train, return_distribution=True)
+                    bstds.append(bstd)
+                    ascales.append(ascle)
                 else:
-                    action = agent.select_action(state, prev_states, prev_actions, random_base=args.random_base_train)
-
+                    action, bmean, bstd, ascle, ashft = agent.select_action(state, prev_states, prev_actions,
+                                                 random_base=args.random_base_train, return_distribution=True)
+                    bstds.append(bstd)
+                    ascales.append(ascle)
             if PROFILING:
                 print("select action:", time.time() - prev_time) # TODO: Remove later
                 prev_time = time.time()
@@ -191,16 +202,10 @@ with experiment.train():
                 for i in range(args.updates_per_step):
                     # Update parameters of all the networks
                     critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates)
-                    # print("Entropy Parameter", alpha)
-                    # Log to Comet.ml
-                    # experiment.log_metric("Critic_1_Loss", critic_1_loss, step=updates)
-                    # experiment.log_metric("Critic_2_Loss", critic_2_loss, step=updates)
-                    # experiment.log_metric("Policy_Loss", policy_loss, step=updates)
-                    # experiment.log_metric("Entropy_Loss", ent_loss, step=updates)
-                    # Put it on a different thread
-                    #threads.append(threading.Thread(target=agent.update_parameters, args=(memory, args.batch_size, updates)))
-                    # Start the new thread
-                    #threads[-1].start()
+
+                    critic_1_losses.append(critic_1_loss)
+                    critic_2_losses.append(critic_2_loss)
+                    policy_losses.append(policy_loss)
 
                     updates += 1
 
@@ -352,10 +357,16 @@ with experiment.train():
                 print("Step time: ", time.time() - s_time)
         # Log to comet.ml
         experiment.log_metric("Episode_Reward", episode_reward, step=i_episode)
-        # Log to console
-        # print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps,
-        #                                                                              episode_steps,
-        #                                                                              round(episode_reward, 2)))
+        std_log= np.mean(np.log(np.array(bstds)))
+        experiment.log_metric("Base log stddev", std_log, step=i_episode)
+        scale_log = np.mean(np.log(np.array(ascales)))
+        experiment.log_metric("AR log scale", scale_log, step=i_episode)
+        mean_critic_1_loss = np.mean(np.array(critic_1_losses))
+        experiment.log_metric("Mean Critic 1 loss", mean_critic_1_loss, step=i_episode)
+        mean_critic_2_loss = np.mean(np.array(critic_2_losses))
+        experiment.log_metric("Mean Critic 2 loss", mean_critic_2_loss, step=i_episode)
+        mean_policy_loss = np.mean(np.array(policy_losses))
+        experiment.log_metric("Mean Policy Loss", mean_policy_loss)
 
         if stop_training:
             break
