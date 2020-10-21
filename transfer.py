@@ -17,32 +17,45 @@ import time
 api_key = 'tHDbEydFQGW7F1MWmIKlEvrly'
 
 workspace = 'aguerra'
-project_name = 'arsac'
+project_name = 'arsac-test'
 comet_api = API(api_key=api_key)
 
 # PUT THE NAME OF THE FILE WE WANT TO SAVE HERE
 actor_filename = "actor.model"
 critic_filename = "critic.model"
-# PUT THE EXPERIMENT KEY HERE OF THE EXPERIMENT WE WANT TO TRANSFER FROM
-experiment_id = "157216c90f8e400bab5264211ede1646"
-# Tranfer domain/task names go here. For gym environments, just use domain, set task to None.
-transfer_domain = "walker"
-transfer_task = "run"
+
+parser = argparse.ArgumentParser(description='PyTorch AutoRegressiveFlows-RL Args')
+# Once we get Mujoco then we will use this one
+parser.add_argument('--experiment_id', default="157216c90f8e400bab5264211ede1646",
+                    help='Experiment ID we want to transfer our experiment from')
+parser.add_argument('--task-name', default="walk",
+                    help='Transfer task')
+parser.add_argument('--transfer_flow', default=True,
+                    help="Determines whether or not we transfer the flow network")
+parser.add_argument('--transfer_base', default=False,
+                    help="Determines whether or not we transfer the base network")
+parser.add_argument('--seed', type=int, default=123456, metavar='N',
+                    help='random seed (default: 123456)')
+parser.add_argument('--num_steps', type=int, default=1000000, metavar='N',
+                    help='maximum number of steps (default: 1000000)')
+parser.add_argument('--cuda', action="store_true", default=False,
+                    help='run on CUDA (default: False)')
+parser.add_argument('--device_id', type=int, default=0, metavar='G',
+                    help='Which GPU to run on')
+args = parser.parse_args()
 # Adjust these to determine what component of the policy gets transferred.
-transfer_flow = True
-transfer_base = True
 
 base_experiment = comet_api.get_experiment(project_name=project_name,
                                                   workspace=workspace,
-                                                  experiment=experiment_id)
+                                                  experiment=args.experiment_id)
 asset_list = base_experiment.get_asset_list()
 
 # First setup the arguments
 args_asset_id = [x for x in asset_list if x['fileName'] == "args"][0]['assetId']
 args_dict = base_experiment.get_asset(args_asset_id, return_type="json")
-parser = argparse.ArgumentParser(description='PyTorch AutoRegressiveFlows-RL Transferred Args')
-args = parser.parse_args()
-args.__dict__ = args_dict
+for key in args_dict.keys():
+    if key not in args.__dict__.keys():
+        args.__dict__[key] = args_dict[key]
 
 # Setup Cuda
 if args.device_id is None:
@@ -54,8 +67,8 @@ else:
     torch.cuda.set_device(0)
 
 # Next we setup the environment
-# TODO: Check that this environment state/action space matches that of the one we are transferring from
-assert transfer_domain == args.env_name
+transfer_domain = args.env_name
+transfer_task = args.task_name
 env = EnvWrapper(transfer_domain, transfer_task, args.pixel_based, args.resolution)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
@@ -80,7 +93,7 @@ with open(act_path, 'wb+') as f:
     f.write(actor)
 #with open(crt_path, 'wb+') as f:
 #    f.write(critic)
-agent.load_model(act_path, None, flow_only=transfer_flow, base_only=transfer_base)
+agent.load_model(act_path, None, flow_only=args.transfer_flow, base_only=args.transfer_base)
 
 # Comet logging. Note we are starting a new experiment now
 experiment = Experiment(api_key=api_key,

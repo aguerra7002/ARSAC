@@ -122,7 +122,7 @@ walker_transfer_dict = {"SAC": ['21ed3d77773e4249b171a321a2bdcd07'],
                  "ARSAC w/ flow transfer": ['cf8a735331fc4fc689943cf1581f3c79'], # Transferred from 157216c90f8e400bab5264211ede1646
                  "ARSAC w/ base + flow transfer": ['a131e09fef224a27ab9d5050aa7d2dd5']} # Transferred from 157216c90f8e400bab5264211ede1646
 
-# DM Control Base Tests (Batch size 128, ARSAC-3)
+# DM Control Base Tests (Batch size 128, ARSAC-3, hidden dim 32)
 walker_walk_base_dict = {"SAC": ['5486ada760c640f7b5fbdd3680ce8258'],
                          "ARSAC-3": ['848a8336f98343dca7e09ff80e221dba']}
 walker_run_base_dict = {"SAC": ['a2277a87765e4ddd8d9af641a8ce97cf'],
@@ -136,7 +136,7 @@ hopper_stand_base_dict = {"SAC": ['27553ab85f5d4f2981339ecb244ed92a'],
 hopper_hop_base_dict = {"SAC": ['e4c400fa2c654d739952138653271a55'],
                          "ARSAC-3": ['bcdbbdd174764aba84742d2f9122f789']}
 
-# DM Control Base Tests (Batch Size 256, ARSAC-5)
+# DM Control Base Tests (Batch Size 256, ARSAC-5, hidden dim 32)
 walker_walk_base_dict2 = {"SAC": ['b1acc1d1812b490c91437d8735f37911', # 1
                                   '25cabb2bf78b4a26847cdbf07fee1f73', # 2
                                   '8671749406ad4e4a97372d36e28d1bd0'], # 3
@@ -174,6 +174,33 @@ hopper_hop_base_dict2 = {"SAC": ['84fe85ab190e46829a5ea83ce7f71c66',
                                      '497aaa6f7cc1481d89339c2a1df0bfd7',
                                      '74404513a2a245c3adcff5b96b1c4254']}
 
+# DM Control Base Tests (Batch Size 256, ARSAC-5, hidden dim 2x256)
+# We only do quadruped and hopper since walker was able to learn with 1x32 hidden size
+quadruped_walk_base_dict3 = {"SAC": ['829f7aff24e041ef94829e266147965f',
+                                     '511fb31a0a6b48fcae11a43c436616f2',
+                                     'a73054aa200b42d08978a8487937642d'],
+                         "ARSAC-5": ['4d75ad875f5140728c7be89bb0bb96e4',
+                                     'cc937d7005274803a640a68c4aa8367c',
+                                     'a966793edf034ac79fb63918d410f450']}
+quadruped_run_base_dict3 = {"SAC": ['b677035a0e044c5db3a9f598ccc3de90',
+                                    '3e0e68b5d2fc4ecdb397a8b2e012bf44',
+                                    '1f0f42bbebd8418b81e01c8f21e09d73'],
+                         "ARSAC-5": ['d2e43dbd1edc4f2a8074d60f92f8191a',
+                                     'a7c6092e814846eb94d0393f896b83b0',
+                                     '0aa732f33af84377b61f25a1c9971575']}
+hopper_stand_base_dict3 = {"SAC": ['13f01b2093de4e058b5ab71594834d2b',
+                                   '9a23165ed514410ca6e8a81f991cd037',
+                                   'e6552a8917514a4a888f4d1c3dbe0621'],
+                         "ARSAC-5": ['b5cecb25688340f48f691b9cbcf73a6b',
+                                     'd75d30f5d83d423ea196c68fa5a93a66',
+                                     '5a737d5d786d4c659c76978c3f860ac4']}
+hopper_hop_base_dict3 = {"SAC": ['ea594f54e21b4c01921cc2dbfd3f7189',
+                                 '09e56e24a85c446fbf76a6c05facceae',
+                                 '8a82bace2dbf443fa36051ae08cccd05'],
+                         "ARSAC-5": ['b70145be1cdb45a1bdc97b1a849f0d93',
+                                     'e73dcb0f4d62404cba985344b31a6a26',
+                                     '908fcee3ac8d4156a2e83f8639df8111']}
+
 # DM Control Pixel Tests
 # TODO: FILLIN
 
@@ -196,13 +223,19 @@ to_plot_dict2 = {
         "Hopper Hop Base 256" : hopper_hop_base_dict2
     }
 
+to_plot_dict3 = {
+    "Quadruped Walk Full" : quadruped_walk_base_dict3,
+    "Quadruped Run Full" : quadruped_run_base_dict3,
+    "Hopper Stand Full" : hopper_stand_base_dict3,
+    "Hopper Hop Full" : hopper_hop_base_dict3
+}
 
 if __name__ == "__main__":
 
     # Specify the folder we want to save the visualizations to
     base_dir = "reward_plots_new/"
-    for env in to_plot_dict2.keys():
-        env_exp_dict = to_plot_dict2[env]
+    for env in to_plot_dict3.keys():
+        env_exp_dict = to_plot_dict3[env]
         print("Visualizing ", env)
 
         plot_rewards(env_exp_dict, base_dir)
