@@ -367,6 +367,8 @@ with experiment.train():
         experiment.log_metric("Mean Critic 2 loss", mean_critic_2_loss, step=i_episode)
         mean_policy_loss = np.mean(np.array(policy_losses))
         experiment.log_metric("Mean Policy Loss", mean_policy_loss)
+        # Plot the entropy as well
+        experiment.log_metric("Entropy parameter", alpha)
 
         if stop_training:
             break
