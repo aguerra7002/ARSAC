@@ -110,7 +110,7 @@ action_space_size = env.action_space.sample().shape[0]
 state_space_size = env.get_state_space_size(position_only=args.position_only)
 
 # If we want to Time Profile
-PROFILING = True
+PROFILING = False
 if PROFILING:
     import time
 
