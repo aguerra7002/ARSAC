@@ -73,7 +73,7 @@ class EnvWrapper:
             else:
                 return temp_state
 
-    def flattened_to_pixel(self, flattened):
+    def flattened_to_pixel(self, flattened, scale=True):
         if self.type == EnvWrapper.GYM:
             # Set the state and render the pixel image
             self.env.sim.set_state_from_flattened(flattened)
@@ -92,7 +92,10 @@ class EnvWrapper:
             # Then render the image
             img = self.env.physics.render(camera_id=0, width=self.resolution, height=self.resolution)
             # Transpose dimensions and scale between -1/2 and 1/2
-            return (img.transpose((2, 0, 1)) / 255) - 0.5
+            if scale:
+                return (img.transpose((2, 0, 1)) / 255) - 0.5
+            else:
+                return img
 
     def get_state_before_eval(self):
         if self.type == EnvWrapper.GYM:

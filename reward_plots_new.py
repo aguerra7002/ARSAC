@@ -21,7 +21,10 @@ SMOOTH = True
 WINDOW = 71
 POLY_DEG = 3
 
-def get_returns(experiment):
+REWARD_KEY = 'train_Avg. Episode_Reward'
+LOG_SCALE_KEY = 'train_AR log scale'
+
+def get_returns(experiment, metric):
     """
     Obtains the (eval) returns from an experiment.
 
@@ -42,7 +45,7 @@ def get_returns(experiment):
     #     steps = np.array(steps)
     #     print(steps[-5:])
     # else:
-    returns_asset_list = experiment.get_metrics('train_Avg. Episode_Reward')
+    returns_asset_list = experiment.get_metrics(metric)
     returns = [float(a['metricValue']) for a in returns_asset_list]
     steps = np.array([float(a['step']) for a in returns_asset_list])
     # # Jenky fix for old arsac tests
@@ -81,8 +84,9 @@ def plot_mean_std(mean, std, label):
         plt.fill_between(np.arange(mean.shape[0]), mean - std, mean + std, alpha=0.2)
 
 
-def plot_rewards(env_exp_dict, save_folder):
-    plt.ylim(ymax=1010, ymin=-10)
+def plot_rewards(env_exp_dict, save_folder, metric):
+    if metric == REWARD_KEY:
+        plt.ylim(ymax=1010, ymin=-10)
     for inference_type in env_exp_dict:
         returns_list = []
         for exp_key in env_exp_dict[inference_type]:
@@ -92,7 +96,7 @@ def plot_rewards(env_exp_dict, save_folder):
                                               workspace=workspace,
                                               experiment=exp_key)
             if experiment is not None:
-                returns, steps = get_returns(experiment)
+                returns, steps = get_returns(experiment, metric)
                 returns_list.append(returns)
             else:
                 print("Invalid Comet ML Experiment Key provided: " + exp_key)
@@ -109,12 +113,17 @@ def plot_rewards(env_exp_dict, save_folder):
             plt.plot(savgol_filter(returns_list[0], WINDOW, POLY_DEG), label=inference_type)
     plt.legend(fontsize=12)
     #plt.xlabel(r'Steps $\times 1,000$', fontsize=15)
+
     plt.xlabel('Eval Episode', fontsize=15)
-    plt.ylabel('Cumulative Reward', fontsize=15)
+    if metric == REWARD_KEY:
+        plt.ylabel('Cumulative Reward', fontsize=15)
+    else:
+        plt.ylabel('Avg. Log(scale)')
     plt.title(env, fontsize=20)
     name = env.replace("w/", "_").replace(" ", "")
-    plt.savefig(save_folder + "pdfs/" + name + '_rewards.pdf')
-    plt.savefig(save_folder + "jpgs/" + name + '_rewards.jpg')
+    end_name = "_rewards" if metric == REWARD_KEY else "_log_scale"
+    plt.savefig(save_folder + "pdfs/" + name + end_name + '.pdf')
+    plt.savefig(save_folder + "jpgs/" + name + end_name + '.jpg')
     plt.clf()
 
 # DM Control Transfer tasks
@@ -139,6 +148,83 @@ quadruped_transfer_dict = {"SAC": ['b677035a0e044c5db3a9f598ccc3de90',
                                                    'be7c1764a0c64818ad166461ac46e9aa',
                                                    'ef1c058aa07f424c8c2366b967c53e93']} # Transferred from 157216c90f8e400bab5264211ede1646
 
+# DM Transfer Control Tasks, this time with Auto-Entropy Tuning
+walker_transfer_dict2 = {"SAC": ['a3116a2d342049258b3b4c078b0900a9',
+                                    '8c36041ad20144c0bed4372e5bee7830',
+                                    '638e1f47b4554c3abcb99e8bd7eb1c7c',
+                                    'e9f62562f0f3404e8e6adc0a87795c41',
+                                    '8679973fbc8a4147980d1e208ffc99f0'],
+                 "SAC w/ base transfer": ['333e459c697c454b9a63fd0f4f14e201',
+                                          'c9f13043b28446febee921d2eb31406b',
+                                          '',
+                                          '2cf06ade668146f39263229dcca0c033',
+                                          '9b686f67af08417d83c1d7697981a815'],
+                 "ARSAC-5": ['739af68727ff409eaf20e7cca5e9c233',
+                              'a5af0b02e7a247b391f6069cfeab9dbb',
+                              '025da2ce2e7e4768a36cba0011ea05f0',
+                              '3e9c9ecf75d94e2fbea7239e534395b9',
+                              'be93ba6eb8414f2f9d6969e7f8dd960b'],
+                 "ARSAC w/ flow transfer": ['db603b5dabae46eea227c2232d4ec3a5',
+                                            '5ff7fd4a1cdb4e57a33e6349f5e288ef',
+                                            '1ffb2517534f4387982cfa4aae96baa1',
+                                            'ff7ef746ccff4d3da3be6aced21ca938',
+                                            '9a46b4a350b54610afcea3b04cd9fd1f'],
+                 "ARSAC w/ base + flow transfer": ['',
+                                                   '',
+                                                   '',
+                                                   '',
+                                                   '']}
+hopper_transfer_dict2 = {"SAC": ['',
+                                    '',
+                                    '',
+                                    '',
+                                    ''],
+                 "SAC w/ base transfer": ['',
+                                          '',
+                                          '',
+                                          '',
+                                          ''], # Transferred from 829f7aff24e041ef94829e266147965f
+                 "ARSAC-5": ['',
+                              '',
+                              '',
+                              '',
+                              ''],
+                 "ARSAC w/ flow transfer": ['',
+                                            '',
+                                            '',
+                                            '',
+                                            ''], # Transferred from 4e96ec38641a4ed59e31050e69811888
+                 "ARSAC w/ base + flow transfer": ['',
+                                                   '',
+                                                   '',
+                                                   '',
+                                                   '']} # Transferred from 157216c90f8e400bab5264211ede1646
+
+quadruped_transfer_dict2 = {"SAC": ['a3116a2d342049258b3b4c078b0900a9',
+                                    '8c36041ad20144c0bed4372e5bee7830',
+                                    '638e1f47b4554c3abcb99e8bd7eb1c7c',
+                                    'e9f62562f0f3404e8e6adc0a87795c41',
+                                    '8679973fbc8a4147980d1e208ffc99f0'],
+                 "SAC w/ base transfer": ['c4b86793eeed485fb6c04fe4b7c7d0cb',
+                                          '21a13cbc7c6c47999df095b33be75958',
+                                          '93775dff76d84873bac7589f5b7ddf8f',
+                                          'cd9392b6d55242bab949a013241ef97c',
+                                          '9bd27365cf0b4364a324b4de05c2ecc9'], # Transferred from 829f7aff24e041ef94829e266147965f
+                 "ARSAC-5": ['739af68727ff409eaf20e7cca5e9c233',
+                              'a5af0b02e7a247b391f6069cfeab9dbb',
+                              '025da2ce2e7e4768a36cba0011ea05f0',
+                              '3e9c9ecf75d94e2fbea7239e534395b9',
+                              'be93ba6eb8414f2f9d6969e7f8dd960b'],
+                 "ARSAC w/ flow transfer": ['',
+                                            '',
+                                            '',
+                                            '',
+                                            ''], # Transferred from 4e96ec38641a4ed59e31050e69811888
+                 "ARSAC w/ base + flow transfer": ['',
+                                                   '',
+                                                   '',
+                                                   '',
+                                                   '']} # Transferred from 157216c90f8e400bab5264211ede1646
 
 # DM Control Base Tests (Batch size 128, ARSAC-3, hidden dim 32)
 walker_walk_base_dict = {"SAC": ['5486ada760c640f7b5fbdd3680ce8258'],
@@ -219,42 +305,86 @@ hopper_hop_base_dict3 = {"SAC": ['ea594f54e21b4c01921cc2dbfd3f7189',
                                      'e73dcb0f4d62404cba985344b31a6a26',
                                      '908fcee3ac8d4156a2e83f8639df8111']}
 # Same tests, but with auto-entropy tuning. Done on more environments
+walker_walk_base_dict4 = {"SAC": ['2ea19479726d44dfa8cd06d94f620178',
+                                  '0f1c2f68e5124ff282283fd6a28961f6',
+                                  '155446f560724c07837e42841527d9d0',
+                                  '1b4f31622c884af2adac83fc4df5b6f6',
+                                  'f11b9050bd1c4ffe93cd049d05dd7820'],
+                          "ARSAC": ['113982d9ab8b4faf849ef5a2efb712f5',
+                                    '0db2b5f019f3424eb0c17a34265932e3',
+                                    '72775f63da174d9889c956d34f8335b1',
+                                    '279206ac947343439547f827a55ca309',
+                                    '47637c6e9ca646dd8fe6c4eb974ab7c9']}
+walker_run_base_dict4 = {"SAC": ['707acf6bfd714c6582e737db0191743f',
+                                  '1cd7e219a5fb46409eab5ca2bd476420',
+                                  '76eb27add9a04d4c8867379ea0d20984',
+                                  'dd362b0740db449b8a156c9edf4e2b49',
+                                  'ba7f1b039bc84c99b228924d6f2e4bc2'],
+                          "ARSAC": ['cd2b9f003e404a8daff56dea22e0bcb3',
+                                    'a70d6e85bebb48afa5ab7cd90a462f84',
+                                    'a6bffea54b32423da7f4a2d2ffc6b0b8',
+                                    'b549680b06e74dd884bb5dc352e8ed97',
+                                    '73cdbd54d8914d3bbefd4597e0eb89d5']}
 quadruped_walk_base_dict4 = {"SAC": ['63f05e87479d48869c2f0aac465700ec',
                                      '38e240215f2c408aad8e29f9e2889a44',
-                                     '7a51337b3690473283028d027d047aa7'],
+                                     '7a51337b3690473283028d027d047aa7',
+                                     'bde9ef35ca214c27abeb7c5ee332d82d',
+                                     '1fd9cb29169340dd9f8295fe86cea399'],
                          "ARSAC-5": ['a8f7092ff8de48cc97b7e8dd2e18849a',
                                      '4e96ec38641a4ed59e31050e69811888', # Used for Transfer experiments as well
-                                     '04a9f3dacea34812aba6fcfaa24efe70']}
+                                     '04a9f3dacea34812aba6fcfaa24efe70',
+                                     '024073a18174487195b1776bad8fe75f',
+                                     'e56565f75b0b4ee291d10a44362df8cd']}
 quadruped_run_base_dict4 = {"SAC": ['a3116a2d342049258b3b4c078b0900a9',
                                     '8c36041ad20144c0bed4372e5bee7830',
-                                    '638e1f47b4554c3abcb99e8bd7eb1c7c'],
+                                    '638e1f47b4554c3abcb99e8bd7eb1c7c',
+                                    'e9f62562f0f3404e8e6adc0a87795c41',
+                                    '8679973fbc8a4147980d1e208ffc99f0'],
                             "ARSAC": ['739af68727ff409eaf20e7cca5e9c233',
                                       'a5af0b02e7a247b391f6069cfeab9dbb',
-                                      '025da2ce2e7e4768a36cba0011ea05f0']}
+                                      '025da2ce2e7e4768a36cba0011ea05f0',
+                                      '3e9c9ecf75d94e2fbea7239e534395b9',
+                                      'be93ba6eb8414f2f9d6969e7f8dd960b']}
 hopper_stand_base_dict4 = {"SAC": ['d3649569dbf64475a8e1816261a773c1',
-                                 'f2ab7089ecbd4626bdcc92682d7fbaa2',
-                                 '64b30262c75046459f1e24c5ee4d1f3d'],
+                                   'f2ab7089ecbd4626bdcc92682d7fbaa2',
+                                   '64b30262c75046459f1e24c5ee4d1f3d',
+                                   '285f149e035749e3a976e8424ff561f4',
+                                   '390dec8c1ac4475798fa17c40f09e72d'],
                          "ARSAC-5": ['e8218e27d9c74d659bc62b9242ab2de2',
                                      'f06a4267d1e9456ea04aa257b71283c0',
-                                     '84b578ed4c93400e9fa0ffce9239e98e']}
+                                     '84b578ed4c93400e9fa0ffce9239e98e',
+                                     'ad9418fa5615497fb1917a072d7a7e23',
+                                     '436a2e208a4f4ffa8827eff3234d61c4']}
 hopper_hop_base_dict4 = {"SAC": ['3945a372be2645c7a6b8efe2951cc3d1',
                                  '62109befb53c4f658a7f21a28017c7e1',
-                                 '3e43964bcab54d5fb88f815f29cfb305'],
+                                 '3e43964bcab54d5fb88f815f29cfb305',
+                                 '8c85abb6e4d84841b9f7fcc52bc9b2cb',
+                                 '528ec1181aa643a6a454e7eae55a435f'],
                          "ARSAC-5": ['f34a21792fd049af98794b666cf292ff',
                                      '789d8441dc6248e280a7026326754832',
-                                     '137012c98cb7417c983c93d214ef1fbf']}
+                                     '137012c98cb7417c983c93d214ef1fbf',
+                                     'e0300ac61e1345a8a3e13cb5c0876035',
+                                     '50e034bba4894b739489478fe3a75ed5']}
 cheetah_run_base_dict4 = {"SAC": ['d4f8852ef3724b1b922a470f1faecc8e',
-                                        '472c1e81b25c4578a5ccadc45f93255f',
-                                        'fb194bd6fdd54d06bfa588118cd1451f'],
-                               "ARSAC": ['d249049426d04c44bbeb1a817e20369c',
-                                         '978bfd18862d4bddb55748312fe82d5c',
-                                         '88735d788b2f43c397bc90cc9d141a9e']}
-swimmer_swimmer6_base_dict4 = {"SAC": ['951a09c149f7465280f3bffb7674411f',
-                                        '29ed48c125634035aa67861d61577581',
-                                        'de2c9feed5fa455ebbe04c654f4845de'],
-                               "ARSAC": ['627a44bd9dd841c7b91f8c4053e92585',
-                                         '8542dd11df5c4a5bb6ac383c17d6237b',
-                                         'be4a4cce0e124526827798883eeb935a']}
+                                  '472c1e81b25c4578a5ccadc45f93255f',
+                                  'fb194bd6fdd54d06bfa588118cd1451f',
+                                  '9168d02d34c34b13bef04eecfbcc2bcf',
+                                  '77350e72c5a047b5a45b18e77da2653a'],
+                           "ARSAC": ['d249049426d04c44bbeb1a817e20369c',
+                                     '978bfd18862d4bddb55748312fe82d5c',
+                                     '88735d788b2f43c397bc90cc9d141a9e',
+                                     '6440820fe6c44b93b17cf2ea3cfb0b44',
+                                     '45c8f087f682459593b8286f366effb0']}
+swimmer_swimmer6_base_dict4 = {"SAC": ['9261019f9dae4b2e905083be0f58ef7c',
+                                        'f3577a6c31a147dfbfec6f85b93c7e76',
+                                        '13ea38a54d2a45da8e260b8dfbfd05b7',
+                                        '1ac80220920d4ed0930c00cc9a2500eb',
+                                        '28a6559428ab49a381e5e9e11759c878'],
+                               "ARSAC": ['6cd4bf639905460e8f23e3e9f42bd963',
+                                         '96224b8d827c47dbb132dd8591223a4c',
+                                         '74533d179112481995b49f1cbbfcad87',
+                                         '61d70de25e674332aedbcc30308aedd7',
+                                         '93f54dab1c584633bc4d7a530dcc357e']}
 
 # DM Control Pixel Tests
 walker_walk_pixel_dict = {"SAC": ['6392d6c1f77547429ab16c46d20f339c',
@@ -296,6 +426,8 @@ to_plot_dict3 = {
 }
 
 to_plot_dict4 = {
+    "Walker Walk AutoEnt 256BS 2x256HS" : walker_walk_base_dict4,
+    "Walker Run AutoEnt 256BS 2x256HS" : walker_run_base_dict4,
     "Quadruped Walk AutoEnt 256BS 2x256HS" : quadruped_walk_base_dict4,
     "Quadruped Run AutoEnt 256BS 2x256HS" : quadruped_run_base_dict4,
     "Hopper Stand AutoEnt 256BS 2x256HS" : hopper_stand_base_dict4,
@@ -306,8 +438,10 @@ to_plot_dict4 = {
 
 if __name__ == "__main__":
     # Specify the folder we want to save the visualizations to
-    base_dir = "reward_plots_new/"
-    for env in to_plot_transfer_dict.keys():
-        env_exp_dict = to_plot_transfer_dict[env]
+    base_rew_dir = "reward_plots_new/"
+    base_logscale_dir = "log_scale_plots_new/"
+    for env in to_plot_dict4.keys():
+        env_exp_dict = to_plot_dict4[env]
         print("Visualizing ", env)
-        plot_rewards(env_exp_dict, base_dir)
+        plot_rewards(env_exp_dict, base_rew_dir, REWARD_KEY)
+        plot_rewards(env_exp_dict, base_logscale_dir, LOG_SCALE_KEY)
