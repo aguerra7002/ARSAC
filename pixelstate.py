@@ -1,7 +1,5 @@
 import threading
-import gym
 import numpy as np
-import mujoco_py
 from env_wrapper import EnvWrapper
 
 

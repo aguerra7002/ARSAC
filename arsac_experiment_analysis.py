@@ -5,8 +5,6 @@ import matplotlib
 import torch
 from arrl import ARRL
 import imageio
-from replay_buffer import ReplayBuffer
-from pixelstate import PixelState
 from env_wrapper import EnvWrapper
 import matplotlib.pyplot as plt
 from matplotlib import rc
@@ -27,7 +25,6 @@ comet_api = API(api_key=api_key)
 SMOOTH = True
 WINDOW = 71
 POLY_DEG = 3
-
 
 
 def plot_log_scale(experiment_ids, title, save_dir):
@@ -121,7 +118,7 @@ def plot_action_correlation(id, title, save_dir, eval_to_plot=0, offset=1, base_
     fig.savefig(save_dir + "action_corr/pdfs/" + title.replace(" ", "_") + "_action_corr_offset_" + str(offset) + ".pdf")
 
 
-def plot_eval_episode(exp_id, title, num_steps=80):
+def plot_eval_episode(exp_id, title, min_steps=70, num_steps=80, plot_action=True, plot_agent=True):
     experiment = comet_api.get_experiment(project_name=project_name,
                                                workspace=workspace,
                                                experiment=exp_id)
@@ -180,19 +177,32 @@ def plot_eval_episode(exp_id, title, num_steps=80):
         img = env.env.physics.render(camera_id=0, width=640, height=480)
         writer.append_data(img)
 
+        actions = np.zeros((num_steps - min_steps, action_space_size))
+        shifts = np.zeros((num_steps - min_steps, action_space_size))
+        scales = np.zeros((num_steps - min_steps, action_space_size))
+
         for step in range(num_steps):
-
-            action = agent.select_action(state, prev_states, prev_actions, random_base=args.random_base_train)
-
+            if step % 10 == 0:
+                print(step)
+            action, mean, std, scale, shift = agent.select_action(state, prev_states, prev_actions,
+                                                                  random_base=args.random_base_train,
+                                                                  return_distribution=True)
             # Take a step in the environment. Note, we get the next state in the following line in case we only want pos
             tmp_st, reward, done, _ = env.step(action)  # Step
 
+            # Determines whether or not to plot the agent moving
+            #if plot_agent:
             img = env.env.physics.render(camera_id=0, width=640, height=480)
-            if step >= 70:
+            if step >= min_steps:
                 plt.imshow(img)
                 plt.savefig("arsac_analysis/visual/jpgs/" + title.replace(" ", "_") + "_" + str(step) + ".jpg")
                 plt.savefig("arsac_analysis/visual/pdfs/" + title.replace(" ", "_") + "_" + str(step) + ".pdf")
             writer.append_data(img)
+            if plot_action:
+                if step >= min_steps:
+                    actions[step - min_steps] = action
+                    shifts[step - min_steps] = shift
+                    scales[step - min_steps] = scale
 
             next_state = env.get_current_state(temp_state=tmp_st)
 
@@ -203,16 +213,46 @@ def plot_eval_episode(exp_id, title, num_steps=80):
 
             state = next_state
 
+        print("Plotting action now")
+        if plot_action:
+            # Now we plot the actions in a bunch of different ways
+            # First we do a plot of all the ar components on one dimension
+            for dim in range(action_space_size):
+                shifts_col = shifts[:dim]
+                plt.plot(shifts_col, label="dim " + str(dim))
+            plt.savefig("arsac_analysis/actions/jpgs/" + title.replace(" ", "_") + "_ar_comp.jpg")
+            plt.savefig("arsac_analysis/actions/pdfs/" + title.replace(" ", "_") + "_ar_comp.pdf")
+            plt.clf()
+            # Then we plot the actions
+            for dim in range(action_space_size):
+                actions_col = actions[:dim]
+                plt.plot(actions_col, label="dim " + str(dim))
+            plt.savefig("arsac_analysis/actions/jpgs/"+ title.replace(" ", "_")  + "_actions.jpg")
+            plt.savefig("arsac_analysis/actions/pdfs/" + title.replace(" ", "_") + "_actions.pdf")
+            plt.clf()
+            # Then we plot each dimension (similar to what we had in the workshop paper)
+            for dim in range(action_space_size):
+                shifts_col = shifts[:dim]
+                scales_col = scales[:dim]
+                actions_col = actions[:dim]
+                plt.plot(shifts_col)
+                plt.fill_between(shift - scale, shift + scale, alpha=0.25)
+                plt.plot(action, '.', color='black')
+                plt.savefig("arsac_analysis/actions/jpgs/" + title.replace(" ", "_") + "_dim" + str(dim) + ".jpg")
+                plt.savefig("arsac_analysis/actions/pdfs/" + title.replace(" ", "_") + "_dim" + str(dim) + ".pdf")
+
+
 if __name__ == "__main__":
     save_dir = "arsac_analysis/"
     # Some walker walk experiment
-    walker_walk_experiment_ids = ['3b7564c7ca044faeaf459e7aa5635b98']
+    #walker_walk_experiment_ids = ['3b7564c7ca044faeaf459e7aa5635b98']
     # Some walker run experiment
     walker_run_experiment_ids = ['cd2b9f003e404a8daff56dea22e0bcb3'] # ['3a5ef39381d54d31a8d689bb4171beda']
-    title = "Walker Run (HD 32, BS 256)"
+    title = "Walker Run (HD 2x256, BS 256)"
     #plot_log_scale(arsac_experiment_ids, title, save_dir)
     #plot_rewards(arsac_experiment_ids, title, save_dir)
     # for t in range(10):
-    #     plot_action_correlation(walker_run_experiment_ids[0], title, save_dir, offset=t)
-
-    plot_eval_episode(walker_run_experiment_ids[0], title)
+    #      plot_action_correlation(walker_run_experiment_ids[0], title, save_dir, offset=t)
+    # Will plot the agent moving for given range of steps
+    print("Plotting")
+    plot_eval_episode(walker_run_experiment_ids[0], title, num_steps = 120, min_steps=70, plot_agent=False)

@@ -108,7 +108,7 @@ def make_ar_component_visualization(arsac_visual_dict, steps_to_plot, start_rang
             axs[1].plot(x_axis, shift)
             axs[1].fill_between(x_axis, shift - scale, shift + scale, alpha=0.25)
             action = mean * scale + shift
-            axs[1].plot(x_axis, action, '.', color='black');
+            axs[1].plot(x_axis, action, '.', color='black')
             # Legend
             # axs[1].legend(axs[0].get_lines(), ["ARSAC (base only)", "ARSAC", "SAC"], prop={'size': 10},
             #               title="Algorithm:", loc="lower right")

@@ -111,6 +111,12 @@ class ARRL(object):
     def to_numpy(self, arr):
         return arr.detach().cpu().numpy()[0]
 
+    def require_flow_grad(self, requires_grad):
+        for name, param in self.policy.named_parameters():
+            if "phi" in name:
+                param.requires_grad = requires_grad
+
+
     def update_parameters(self, memory, batch_size, updates):
         # Sample a batch from memory
         if PROFILING:

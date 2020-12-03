@@ -210,7 +210,7 @@ with experiment.train():
                     updates += 1
 
             if PROFILING:
-                prev_time = time.time() # TODO: REmove later
+                prev_time = time.time() # TODO: Remove later
 
             action_noise = np.random.normal(0, 0.1, action_space_size) if args.add_action_noise else 0
             # Take a step in the environment. Note, we get the next state in the following line in case we only want pos

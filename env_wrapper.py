@@ -1,6 +1,5 @@
 import gym
 from dm_control import suite
-from dm_control.suite.wrappers import pixels
 from gym.spaces import Box
 import dm_env
 import numpy as np

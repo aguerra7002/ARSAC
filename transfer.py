@@ -34,10 +34,14 @@ parser.add_argument('--transfer_flow', default=True,
                     help="Determines whether or not we transfer the flow network")
 parser.add_argument('--transfer_base', default=False,
                     help="Determines whether or not we transfer the base network")
+parser.add_argument('--transfer_critic', default=False,
+                    help="Determines whether or not we transfer the critic network")
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
-parser.add_argument('--num_steps', type=int, default=1000000, metavar='N',
+parser.add_argument('--num_steps', type=int, default=3000000, metavar='N',
                     help='maximum number of steps (default: 1000000)')
+parser.add_argument('--freeze_steps', type=int, default=20000, metavar='N',
+                    help='number of steps we run without updating the flow network')
 parser.add_argument('--cuda', action="store_true", default=False,
                     help='run on CUDA (default: False)')
 parser.add_argument('--device_id', type=int, default=0, metavar='G',
@@ -84,17 +88,24 @@ agent = ARRL(state_space_size, env.action_space, args)
 
 # Here is the transfer component. For now, we only transfer the actor.
 actor_asset_id = [x for x in asset_list if actor_filename == x['fileName']][0]['assetId']
-#critic_asset_id = [x for x in asset_list if critic_filename == x['fileName']][0]['assetId']
 actor = base_experiment.get_asset(actor_asset_id)
-#critic = experiment.get_asset(critic_asset_id)
 act_path = 'tmploaded/actor.model'
-#crt_path = 'tmploaded/critic.model'
 with open(act_path, 'wb+') as f:
     f.write(actor)
-#with open(crt_path, 'wb+') as f:
-#    f.write(critic)
-agent.load_model(act_path, None, flow_only=args.transfer_flow, base_only=args.transfer_base)
 
+if args.transfer_critic:
+    crt_path = 'tmploaded/critic.model'
+    critic_asset_id = [x for x in asset_list if critic_filename == x['fileName']][0]['assetId']
+    critic = base_experiment.get_asset(critic_asset_id)
+    with open(crt_path, 'wb+') as f:
+        f.write(critic)
+    agent.load_model(act_path, crt_path, flow_only=args.transfer_flow, base_only=args.transfer_base)
+else:
+    agent.load_model(act_path, None, flow_only=args.transfer_flow, base_only=args.transfer_base)
+
+if args.freeze_steps > 0:
+    agent.require_flow_grad(False) # This will freeze the flow network
+    
 # Comet logging. Note we are starting a new experiment now
 experiment = Experiment(api_key=api_key,
                         project_name=project_name, workspace=workspace)
@@ -161,12 +172,18 @@ with experiment.train():
 
             # print("select action:", time.time() - prev_time) # TODO: Remove later
             # prev_time = time.time()
+
+            # Unfreeze the flow network if we are past the number of freeze steps
+            if total_numsteps == args.freeze_steps + 1:
+                agent.require_flow_grad(True)
+
             if len(memory) > args.start_steps: #args.batch_size * :
                 # Number of updates per step in environment
                 for i in range(args.updates_per_step):
                     # Update parameters of all the networks
                     # print("update params:")  # TODO: Remove later
                     # What we had before
+
                     critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates)
                     # print("Entropy Parameter", alpha)
                     # Log to Comet.ml
