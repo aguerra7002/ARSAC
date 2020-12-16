@@ -268,15 +268,15 @@ class GaussianPolicy(nn.Module):
 
     def sample(self, state, prev_states, prev_actions, return_distribution=False, random_base=False):
         # First pass the state through the state network
-        mean, log_std = self.forward_theta(state, prev_states)
+        mean1, log_std = self.forward_theta(state, prev_states)
         std = log_std.exp()
 
         if random_base:
-            mean = torch.zeros(mean.shape)
+            mean1 = torch.zeros(mean1.shape)
             std = torch.ones(std.shape)
 
         # Sample from the base distribution first.
-        base_dist = Normal(mean, std)
+        base_dist = Normal(mean1, std)
         base_action = base_dist.rsample()
 
         # Base distribution
@@ -297,14 +297,14 @@ class GaussianPolicy(nn.Module):
                 if self.ignore_scale:
                     # If we only want to incorporate the shift execute this code
                     action = base_action + m
-                    mean = mean + m
+                    mean = mean1 + m
                     # For logging
                     ascle = torch.ones(base_action.shape)
                     ashft = m
                 else:
                     action = base_action * sigma.exp() + m
                     # Also want to adjust the mean, so that evaluation mode also works
-                    mean = mean * sigma.exp() + m
+                    mean = mean1 * sigma.exp() + m
                     # Affine Transform Scaling
                     log_prob -= sigma
                     # For logging
@@ -313,6 +313,7 @@ class GaussianPolicy(nn.Module):
 
         else:
             action = base_action
+            mean = mean1
             # For logging
             ascle = torch.ones(action.shape)
             ashft = torch.zeros(action.shape)

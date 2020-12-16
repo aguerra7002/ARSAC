@@ -116,7 +116,22 @@ def plot_action_correlation(id, title, save_dir, eval_to_plot=0, offset=1, base_
     axs.imshow((hm+1) / 2, cmap="viridis", interpolation='nearest')
     fig.savefig(save_dir + "action_corr/jpgs/" + title.replace(" ", "_") + "_action_corr_offset_" + str(offset) + ".jpg")
     fig.savefig(save_dir + "action_corr/pdfs/" + title.replace(" ", "_") + "_action_corr_offset_" + str(offset) + ".pdf")
+    plt.clf()
+    return np.linalg.norm(hm) / np.size(hm)
 
+def plot_action_correlation_range(id, title, save_dir, offsets):
+    cor_bases = []
+    cor_acts = []
+    for t in offsets:
+        print(t)
+        cor_bases.append(plot_action_correlation(id, title + " Base Only", save_dir, offset=t, base_dist=True))
+        cor_acts.append(plot_action_correlation(id, title, save_dir, offset=t))
+    plt.plot(cor_acts, label="AR Action")
+    plt.plot(cor_bases, label="Base Action")
+    plt.legend()
+    plt.savefig(save_dir + "action_corr/jpgs/" + title.replace(" ", "_") + "base_vs_full.jpg")
+    plt.savefig(save_dir + "action_corr/pdfs/" + title.replace(" ", "_") + "base_vs_full.pdf")
+    plt.clf()
 
 def plot_eval_episode(exp_id, title, min_steps=70, num_steps=80, plot_action=True, plot_agent=True):
     experiment = comet_api.get_experiment(project_name=project_name,
@@ -148,7 +163,7 @@ def plot_eval_episode(exp_id, title, min_steps=70, num_steps=80, plot_action=Tru
     agent = ARRL(state_space_size, env.action_space, args)
 
     actor_filename = "actor.model"
-    critic_filename = "critic.model"
+    # critic_filename = "critic.model"
     actor_asset_id = [x for x in asset_list if actor_filename == x['fileName']][0]['assetId']
 
     actor = experiment.get_asset(actor_asset_id)
@@ -177,7 +192,7 @@ def plot_eval_episode(exp_id, title, min_steps=70, num_steps=80, plot_action=Tru
         img = env.env.physics.render(camera_id=0, width=640, height=480)
         writer.append_data(img)
 
-        actions = np.zeros((num_steps - min_steps, action_space_size))
+        means = np.zeros((num_steps - min_steps, action_space_size))
         shifts = np.zeros((num_steps - min_steps, action_space_size))
         scales = np.zeros((num_steps - min_steps, action_space_size))
 
@@ -186,21 +201,22 @@ def plot_eval_episode(exp_id, title, min_steps=70, num_steps=80, plot_action=Tru
                 print(step)
             action, mean, std, scale, shift = agent.select_action(state, prev_states, prev_actions,
                                                                   random_base=args.random_base_train,
+                                                                  eval=True,
                                                                   return_distribution=True)
             # Take a step in the environment. Note, we get the next state in the following line in case we only want pos
             tmp_st, reward, done, _ = env.step(action)  # Step
 
             # Determines whether or not to plot the agent moving
-            #if plot_agent:
-            img = env.env.physics.render(camera_id=0, width=640, height=480)
-            if step >= min_steps:
-                plt.imshow(img)
-                plt.savefig("arsac_analysis/visual/jpgs/" + title.replace(" ", "_") + "_" + str(step) + ".jpg")
-                plt.savefig("arsac_analysis/visual/pdfs/" + title.replace(" ", "_") + "_" + str(step) + ".pdf")
-            writer.append_data(img)
+            if plot_agent:
+                img = env.env.physics.render(camera_id=0, width=640, height=480)
+                if step >= min_steps:
+                    plt.imshow(img)
+                    plt.savefig("arsac_analysis/visual/jpgs/" + title.replace(" ", "_") + "_" + str(step) + ".jpg")
+                    plt.savefig("arsac_analysis/visual/pdfs/" + title.replace(" ", "_") + "_" + str(step) + ".pdf")
+                writer.append_data(img)
             if plot_action:
                 if step >= min_steps:
-                    actions[step - min_steps] = action
+                    means[step - min_steps] = mean
                     shifts[step - min_steps] = shift
                     scales[step - min_steps] = scale
 
@@ -218,41 +234,45 @@ def plot_eval_episode(exp_id, title, min_steps=70, num_steps=80, plot_action=Tru
             # Now we plot the actions in a bunch of different ways
             # First we do a plot of all the ar components on one dimension
             for dim in range(action_space_size):
-                shifts_col = shifts[:dim]
+                shifts_col = shifts[:,dim]
                 plt.plot(shifts_col, label="dim " + str(dim))
             plt.savefig("arsac_analysis/actions/jpgs/" + title.replace(" ", "_") + "_ar_comp.jpg")
             plt.savefig("arsac_analysis/actions/pdfs/" + title.replace(" ", "_") + "_ar_comp.pdf")
             plt.clf()
             # Then we plot the actions
             for dim in range(action_space_size):
-                actions_col = actions[:dim]
+                actions_col = means[:,dim] * scales[:, dim] + shifts[:, dim]
                 plt.plot(actions_col, label="dim " + str(dim))
             plt.savefig("arsac_analysis/actions/jpgs/"+ title.replace(" ", "_")  + "_actions.jpg")
             plt.savefig("arsac_analysis/actions/pdfs/" + title.replace(" ", "_") + "_actions.pdf")
             plt.clf()
             # Then we plot each dimension (similar to what we had in the workshop paper)
             for dim in range(action_space_size):
-                shifts_col = shifts[:dim]
-                scales_col = scales[:dim]
-                actions_col = actions[:dim]
-                plt.plot(shifts_col)
-                plt.fill_between(shift - scale, shift + scale, alpha=0.25)
-                plt.plot(action, '.', color='black')
+
+                shifts_col = shifts[:, dim]
+                scales_col = scales[:, dim]
+                actions_col = means[:,dim] * scales[:, dim] + shifts[:, dim]
+                x_axis = np.arange(shifts_col.shape[0])
+                plt.title("Action and AR Component of dimension " + str(dim))
+                plt.plot(x_axis, means[:, dim])
+                plt.plot(x_axis, shifts_col)
+                plt.fill_between(x_axis, shifts_col - scales_col, shifts_col + scales_col, alpha=0.25)
+                plt.plot(x_axis, actions_col, '.', color='black')
                 plt.savefig("arsac_analysis/actions/jpgs/" + title.replace(" ", "_") + "_dim" + str(dim) + ".jpg")
                 plt.savefig("arsac_analysis/actions/pdfs/" + title.replace(" ", "_") + "_dim" + str(dim) + ".pdf")
-
+                plt.clf()
 
 if __name__ == "__main__":
     save_dir = "arsac_analysis/"
-    # Some walker walk experiment
-    #walker_walk_experiment_ids = ['3b7564c7ca044faeaf459e7aa5635b98']
-    # Some walker run experiment
-    walker_run_experiment_ids = ['cd2b9f003e404a8daff56dea22e0bcb3'] # ['3a5ef39381d54d31a8d689bb4171beda']
-    title = "Walker Run (HD 2x256, BS 256)"
-    #plot_log_scale(arsac_experiment_ids, title, save_dir)
-    #plot_rewards(arsac_experiment_ids, title, save_dir)
-    # for t in range(10):
-    #      plot_action_correlation(walker_run_experiment_ids[0], title, save_dir, offset=t)
+    # Walker Walk (HD 1x32, BS 256, No AutoEnt Tuning)
+    walker_walk_experiment1 = ["Walker Walk HD 1x32, BS 256", '3b7564c7ca044faeaf459e7aa5635b98']
+    walker_walk_experiment2 = ["Walker Walk AutoEnt HD 2x256, BS 256", '0db2b5f019f3424eb0c17a34265932e3']
+    walker_run_experiment1 = ["Transfer Walker Run AutoEnt HD 2x256, BS 256", 'db603b5dabae46eea227c2232d4ec3a5']
+    walker_run_experiment2 = ["Walker Run AutoEnt HD 1x32, BS256", "74e14df64e214d8ab68fcdb91bd44cb8"]
+    quadruped_walk_experiment = ["Quadruped Walk AutoEnt HD 1x32, BS 256", "14ae9513a53a42bf89b65d02f6cdc5e7"]
+
+    plot_action_correlation_range(walker_run_experiment2[1], walker_run_experiment2[0], save_dir, range(10))
+
     # Will plot the agent moving for given range of steps
-    print("Plotting")
-    plot_eval_episode(walker_run_experiment_ids[0], title, num_steps = 120, min_steps=70, plot_agent=False)
+    plot_eval_episode(walker_run_experiment2[1], walker_run_experiment2[0], num_steps = 200, min_steps=70, plot_agent=False)
+    #plot_eval_episode(quadruped_walk_experiment[1], quadruped_walk_experiment[0], num_steps=200, min_steps=70, plot_agent=False)

@@ -423,11 +423,114 @@ humanoid_run_base_dict4 = {"SAC": ['d4f897346e714022bb2e7cc3e1b795b7',
                                    '4ccab64dd972429892e79b2b80ef9ae1',
                                    '534810614ac54afc9d3c65c2f42b5f79',
                                    '4f5781e5784e402c9176eea4ee0e20ef'],
-                               "ARSAC-5": ['0b22c9785f0440ec9166b99e6aa0ede4',
-                                           '51a0de4aaec04d2aa2f5e84eaf89374b',
-                                           '0f02afcac7a14116a57e17fbe86f41e3',
-                                           '004f7b3ab7c74188a3950ad5526c3a4b',
-                                           '51a0de4aaec04d2aa2f5e84eaf89374b']}
+                            "ARSAC-3": ['7a22d3a7eaae48d9bb39441e3fa7a0ba',
+                                         '85e6c9a14c594273938f4522107c3937',
+                                         '4eb8a953dd0b4bad95f8f9cd3ad80087',
+                                         'af8d597642344d70b2eee24e5c3e9153',
+                                         'c4ff509870c8468bab08ad4f178dcb1f'],
+                            "ARSAC-5": ['0b22c9785f0440ec9166b99e6aa0ede4',
+                                       '51a0de4aaec04d2aa2f5e84eaf89374b',
+                                       '0f02afcac7a14116a57e17fbe86f41e3',
+                                       '004f7b3ab7c74188a3950ad5526c3a4b',
+                                       '51a0de4aaec04d2aa2f5e84eaf89374b'],
+                            "ARSAC-10": ['6f69419843de435fa1f08e673b4e627f',
+                                         'fd1f00c497834716a53c5bd76dea70cb',
+                                         '4ff0e447a50842e1b835a01aa74d20d9',
+                                         '71db7e4445464aad8f36dbe9c91ff07a',
+                                         '04a5ad091ac54904bbd6139f3ca9b701']
+                           }
+
+# Base Tests With 1x32 HS AutoEntropy Tuning, BS 256
+walker_walk_base_dict5 = {
+    "SAC": ["4a4049ef6cd64db1b9efe21d30f15f40",
+            "b7247a4fbbc54691ac08ee08aaceb76b",
+            "a48c59871a8f416491694a038a4df0e3",
+            "b20abe2ce6fe4c23b14b659c0659737a",
+            "d1cbda6a1f4e4f83be480832409d4efe"],
+    "ARSAC": ["5691959d6b01421d8dc1b78aaa3937ff",
+              "2d26d47b74554c8ca91c7302c616403b",
+              "f439a152dc6d462596fababa20323359",
+              "756d6844ce8347819f6f6849893c1825",
+              "bfee66cd9d6d4a1baced9aecde015bd4"]
+}
+
+walker_run_base_dict5 = {
+    "SAC" : ["3193d027636e4593a8ba71a84ee21638",
+             "6528837f8fc94920a472fe827f98ca63",
+             "8e8450864b264fe18ed309a9e6fc6866",
+             "b6e6f26e60794ce69943c75138c7731c",
+             "29af5554dec04009a3e56a581dd420a8"],
+    "ARSAC" : ["74e14df64e214d8ab68fcdb91bd44cb8",
+               "1cf5297adce049699f860e1438707bab",
+               "5d1f3bea197a4530b8cf22ceb8d44f0f",
+               "deb002867c1747b39e62bbbf182b8e68",
+               "ed83960ca38e4807be3a659caa9302e5"]
+}
+
+hopper_stand_base_dict5 = {
+    "SAC": ["732e12e250b644d79e02b74871e55daa",
+            "c8b7b7edd9eb498e92127a4a180d2813",
+            "8e7b076012ed4035aeb505079cb60995",
+            "673e8e7765524e5890dabb0abc49f9e8",
+            "f8ed84b52dd44a5ea2b48097d574c519"],
+    "ARSAC": ["bb2b4fc7de334f94819a634b59def873",
+              "6047c0d508884c9cad19abeb0daf1701",
+              "e0c4391944d24506afe99c631ea60bfb",
+              "c2698c94780d4a4ab0018a6bd13e6303",
+              "d260e3a97ef44b5bac92deb500e3de0b"]
+}
+
+hopper_hop_base_dict5 = {
+    "SAC": ["b0713cbd76e84f138a8eab35c76e4df0",
+            "2320644ff44e4869be45a6ba6df06538",
+            "5aa24eace5e3442383092e29dc2d23dc",
+            "ce57c25d3bf349c2aaf850e383e1359a",
+            "36f69828aa1e4d869074179a0831c947"],
+    "ARSAC": ["aeeb746726ef4b07a573a98df0711f9c",
+              "4ffdd143801a4db4800efe5063ce95df",
+              "7f689974083d43869bf1a8240c96e939",
+              "037d89a28af84ac2aabf170e46c8cb93",
+              "df6ce5eefc2e4e5d8a9d126e17da481a"]
+}
+
+quadruped_walk_base_dict5 = {
+    "SAC" : ["f1d1b694ebf74bd1a7afae1d27fe3687",
+             "5210201af61e43938daafefb77affc43",
+             "fbf5904caed6479f8734cd20bc90199e",
+             "8532de8d1d1947b7b9946a0b6b927bc5",
+             "f91f1ab10909466aa63d5ec9bc3ce5b6"],
+    "ARSAC" : ["14ae9513a53a42bf89b65d02f6cdc5e7",
+               "8810a8f56bba4a7a878e1b5e51f92098",
+               "691c1a88efff4befb0f874b8321d94ef",
+               "083935a6c23f4e8685f49e5835f6b7e7",
+               "e46ec218807342caa98989cd31379182"]
+}
+
+quadruped_run_base_dict5 = {
+    "SAC" : ["0eeb188dba754404a41ed786a52d5ac8",
+             "55bb145d0b4b4921a60a154504160e0b",
+             "cc69bfb3e07d433dbe49977dc4a34b79",
+             "2e1b579760ac4ff68adf3a4e11181803",
+             "4f295c37b35a4269a016390cd522ffe3"],
+    "ARSAC" : ["56911a04f19347898de823f159cf0f52",
+               "41b6b5e0401945cfb26f6bbe201720a3",
+               "bb9705e69aad45cd85395eefb1f267b0",
+               "a56a0c85760c466bb24daa092041a4fe",
+               "674eca50665948a089295335e8de13b0"]
+}
+
+cheetah_run_base_dict5 = {
+    "SAC": ["82891be32c8f4ffb850f4beb1a6c7934",
+            "9b30bd559e83454587a5d29e5129a96c",
+            "2ed80219827d472eb3151ff204339886",
+            "3dd6d13174fb40349b8e2fecf64a5b81",
+            "63585d83dafb49b99316d6814b4bbe03"],
+    "ARSAC": ["5ab462af89fd4f3ca670838c252d8dc8",
+              "15391fe3d8d6428b885d8f748e5e91d8",
+              "a0120de87a9541fd968c32812eb02e6a",
+              "72b7d63ccfd24675b5a5c14aaa94c2fa",
+              "2f23146b1baa45c8806a081cbfb9023e"]
+}
 
 # DM Control Pixel Tests
 walker_walk_pixel_dict = {"SAC": ['6392d6c1f77547429ab16c46d20f339c',
@@ -478,17 +581,27 @@ to_plot_dict4 = {
     # "Hopper Hop AutoEnt 256BS 2x256HS" : hopper_hop_base_dict4,
     # "Cheetah Run AutoEnt 256BS 2x256HS" : cheetah_run_base_dict4,
     # "Swimmer Swimmer6 AutoEnt 256BS 2x256HS" : swimmer_swimmer6_base_dict4,
-    "Humanoid Stand Autoent 256BS 2x256HS" : humanoid_stand_base_dict4,
-    "Humanoid Walk AutoEnt256BS 2x256HS" : humanoid_walk_base_dict4,
+    # "Humanoid Stand Autoent 256BS 2x256HS" : humanoid_stand_base_dict4,
+    # "Humanoid Walk AutoEnt256BS 2x256HS" : humanoid_walk_base_dict4,
     "Humanoid Run AutoEnt 256BS 2x256HS" : humanoid_run_base_dict4
+}
+
+to_plot_dict5 = {
+    "Walker Walk AutoEnt 256BS 1x32HS" : walker_walk_base_dict5,
+    "Walker Run AutoEnt 256BS 1x32HS" : walker_run_base_dict5,
+    "Hopper Stand AutoEnt 256BS 1x32 HS" : hopper_stand_base_dict5,
+    "Hopper Hop AutoEnt 256BS 1x32 HS" : hopper_hop_base_dict5,
+    "Quadruped Walk AutoEnt 256BS 1x32HS" : quadruped_walk_base_dict5,
+    "Quadruped Run AutoEnt 256BS 1x32HS" : quadruped_run_base_dict5,
+    "Cheetah Run AutoEnt 256BS 1x32 HS" : cheetah_run_base_dict5
 }
 
 if __name__ == "__main__":
     # Specify the folder we want to save the visualizations to
     base_rew_dir = "reward_plots_new/"
     base_logscale_dir = "log_scale_plots_new/"
-    for env in to_plot_transfer_dict.keys():
-        env_exp_dict = to_plot_transfer_dict[env]
+    for env in to_plot_dict5.keys():
+        env_exp_dict = to_plot_dict5[env]
         print("Visualizing ", env)
         plot_rewards(env_exp_dict, base_rew_dir, REWARD_KEY)
         plot_rewards(env_exp_dict, base_logscale_dir, LOG_SCALE_KEY)

@@ -105,7 +105,7 @@ else:
 
 if args.freeze_steps > 0:
     agent.require_flow_grad(False) # This will freeze the flow network
-    
+
 # Comet logging. Note we are starting a new experiment now
 experiment = Experiment(api_key=api_key,
                         project_name=project_name, workspace=workspace)
