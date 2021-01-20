@@ -135,7 +135,7 @@ state_lookback = max(args.state_lookback_actor, args.state_lookback_critic)
 # Memory
 memory = ReplayBuffer(args.replay_size)
 rbo = args.restrict_base_output
-print("RBO", rbo)
+
 with experiment.train():
     for i_episode in itertools.count(1):
 

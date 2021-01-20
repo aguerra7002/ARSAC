@@ -125,7 +125,7 @@ class ARRL(object):
         if PROFILING:
             print("update parameters")
             prev_time = time.time()
-        print(len(memory))
+
         prev_state_batch, prev_action_batch, state_batch, action_batch, reward_batch, next_state_batch, mask_batch = \
             memory.sample(batch_size=batch_size)
         if self.pixel_based:
@@ -182,6 +182,12 @@ class ARRL(object):
 
         qf1_loss = F.mse_loss(qf1, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
         qf2_loss = F.mse_loss(qf2, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
+
+        qf_loss = qf1_loss + qf2_loss
+        self.critic_optim.zero_grad()
+        qf_loss.backward()
+        self.critic_optim.step()
+
         pi, log_pi, _, policy_mean, policy_std, _, _ = \
             self.policy.sample(state_batch, prev_state_batch, prev_action_batch, return_distribution=True)
 
@@ -190,30 +196,22 @@ class ARRL(object):
 
         policy_loss = ((self.alpha * log_pi) - min_qf_pi).mean()  # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
         # Add in regularization to policy here.
-        # policy_loss += self.policy.get_reg_loss(lambda_reg=self.lambda_reg, use_l2_reg=self.use_l2_reg)
+        policy_loss += self.policy.get_reg_loss(lambda_reg=self.lambda_reg, use_l2_reg=self.use_l2_reg)
+
+        # Add loss if we choose to restrict the output of the network
+        if self.restrict_base_output > 0.0:
+            norm_type = 'fro' if self.use_l2_reg else 'nuc'
+            norms = torch.norm(policy_mean, dim=1, p=norm_type).mean() + torch.norm(policy_std.log(), dim=1, p=norm_type).mean()
+            policy_loss += norms * self.restrict_base_output
+
+        # Finally we update the policy
+        self.policy_optim.zero_grad()
+        policy_loss.backward()
+        self.policy_optim.step()
 
         if PROFILING:
             print("\tCritic Loss:", time.time() - prev_time)
             prev_time = time.time()
-
-        # Add loss if we choose to restrict the output of the network
-        # if self.restrict_base_output > 0.0:
-        #     norm_type = 'fro' if self.use_l2_reg else 'nuc'
-        #     norms = torch.norm(policy_mean, dim=1, p=norm_type).mean() + torch.norm(policy_std.log(), dim=1, p=norm_type).mean()
-        #     policy_loss = policy_loss.clone() + norms * self.restrict_base_output
-
-
-        self.critic_optim.zero_grad()
-        qf1_loss.backward()
-        self.critic_optim.step()
-
-        self.critic_optim.zero_grad()
-        qf2_loss.backward()
-        self.critic_optim.step()
-
-        self.policy_optim.zero_grad()
-        policy_loss.backward()
-        self.policy_optim.step()
 
         if self.automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
@@ -235,7 +233,7 @@ class ARRL(object):
             print("\tBackprop:", time.time() - prev_time)  # TODO: Remove later
             prev_time = time.time()
 
-        return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item(), new_rbo
+        return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item()
 
     # Save model parameters
     def save_model(self, env_name, suffix="", actor_path=None, critic_path=None):
