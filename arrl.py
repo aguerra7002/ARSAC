@@ -29,11 +29,12 @@ class ARRL(object):
         self.use_gated_transform = args.use_gated_transform
         self.lambda_reg = args.lambda_reg
         self.use_l2_reg = args.use_l2_reg
-        self.restrict_base_output = args.restrict_base_output
 
         self.policy_type = args.policy
         self.target_update_interval = args.target_update_interval
         self.automatic_entropy_tuning = args.automatic_entropy_tuning
+
+        self.restrict_base_output = args.restrict_base_output
 
         self.device = torch.device("cuda" if args.cuda else "cpu")
         self.pixel_based = args.pixel_based
@@ -79,7 +80,7 @@ class ARRL(object):
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
 
-    def select_action(self, state, prev_states=None, prev_actions=None, eval=False, return_distribution=False, random_base=False):
+    def select_action(self, state, prev_states=None, prev_actions=None, eval=False, return_distribution=False, random_base=False, return_prob=False):
 
         state = torch.FloatTensor(state).to(self.device).unsqueeze_(0)
 
@@ -91,19 +92,21 @@ class ARRL(object):
         if not eval:
             if return_distribution:
                 # We pick an action based off a gaussian policy to encourage the model to explore
-                action, _, _, bmean, bstd, ascle, ashft = self.policy.sample(state, prev_states, prev_actions,
+                action, log_prob, _, bmean, bstd, ascle, ashft = self.policy.sample(state, prev_states, prev_actions,
                                                                              return_distribution=True, random_base=random_base)
             else:
                 # We pick an action based off a gaussian policy to encourage the model to explore
-                action, _, _ = self.policy.sample(state, prev_states, prev_actions, random_base=random_base)
+                action, log_prob, _ = self.policy.sample(state, prev_states, prev_actions, random_base=random_base)
         else:
             if return_distribution:
-                _, _, action, bmean, bstd, ascle, ashft = self.policy.sample(state, prev_states, prev_actions,
+                _, log_prob, action, bmean, bstd, ascle, ashft = self.policy.sample(state, prev_states, prev_actions,
                                                                              return_distribution=True, random_base=random_base)
             else:
-                _, _, action = self.policy.sample(state, prev_states, prev_actions, random_base=random_base)
+                _, log_prob, action = self.policy.sample(state, prev_states, prev_actions, random_base=random_base)
 
-        if return_distribution:
+        if return_prob and return_distribution:
+            return self.to_numpy(action), self.to_numpy(bmean), self.to_numpy(bstd), self.to_numpy(ascle), self.to_numpy(ashft), log_prob
+        elif return_distribution:
             return self.to_numpy(action), self.to_numpy(bmean), self.to_numpy(bstd), self.to_numpy(ascle), self.to_numpy(ashft)
         else:
             return action.detach().cpu().numpy()[0]
@@ -117,12 +120,12 @@ class ARRL(object):
                 param.requires_grad = requires_grad
 
 
-    def update_parameters(self, memory, batch_size, updates):
+    def update_parameters(self, memory, batch_size, updates, restrict_base_output=0.0):
         # Sample a batch from memory
         if PROFILING:
             print("update parameters")
             prev_time = time.time()
-
+        print(len(memory))
         prev_state_batch, prev_action_batch, state_batch, action_batch, reward_batch, next_state_batch, mask_batch = \
             memory.sample(batch_size=batch_size)
         if self.pixel_based:
@@ -187,17 +190,18 @@ class ARRL(object):
 
         policy_loss = ((self.alpha * log_pi) - min_qf_pi).mean()  # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
         # Add in regularization to policy here.
-        policy_loss += self.policy.get_reg_loss(lambda_reg=self.lambda_reg, use_l2_reg=self.use_l2_reg)
+        # policy_loss += self.policy.get_reg_loss(lambda_reg=self.lambda_reg, use_l2_reg=self.use_l2_reg)
 
         if PROFILING:
             print("\tCritic Loss:", time.time() - prev_time)
             prev_time = time.time()
 
         # Add loss if we choose to restrict the output of the network
-        if self.restrict_base_output > 0.0:
-            norm_type = 'fro' if self.use_l2_reg else 'nuc'
-            norms = torch.norm(policy_mean, p=norm_type) + torch.norm(policy_std.log(), p=norm_type)
-            policy_loss += norms * self.restrict_base_output
+        # if self.restrict_base_output > 0.0:
+        #     norm_type = 'fro' if self.use_l2_reg else 'nuc'
+        #     norms = torch.norm(policy_mean, dim=1, p=norm_type).mean() + torch.norm(policy_std.log(), dim=1, p=norm_type).mean()
+        #     policy_loss = policy_loss.clone() + norms * self.restrict_base_output
+
 
         self.critic_optim.zero_grad()
         qf1_loss.backward()
@@ -231,7 +235,7 @@ class ARRL(object):
             print("\tBackprop:", time.time() - prev_time)  # TODO: Remove later
             prev_time = time.time()
 
-        return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item()
+        return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item(), new_rbo
 
     # Save model parameters
     def save_model(self, env_name, suffix="", actor_path=None, critic_path=None):

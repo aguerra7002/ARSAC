@@ -30,6 +30,8 @@ parser.add_argument('--alpha', type=float, default=0.03, metavar='G',
                             term against the reward (default: 0.2)')
 parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, metavar='G',
                     help='Automatically adjust α (default: False)')
+parser.add_argument('--automatic_base_reduction', type=bool, default=False, metavar='G',
+                    help='Automatically reduce the base output over time, useful for compressing policies into AR comp')
 ################ Specific to ARSAC ####################
 parser.add_argument('--use_gated_transform', type=bool, default=False, metavar='G',
                     help='Use Inverse Autoregressive Flow')
@@ -134,6 +136,9 @@ memory = ReplayBuffer(args.replay_size)
 # Will hold ALL of our results and will be what we log to comet
 eval_dicts = []
 
+# Will determine how much we restrict the base output
+rbo = args.restrict_base_output
+
 # Training Loop
 total_numsteps = 0
 updates = 0
@@ -200,8 +205,8 @@ with experiment.train():
             if len(memory) > args.start_steps: #args.batch_size * :
                 # Number of updates per step in environment
                 for i in range(args.updates_per_step):
-                    # Update parameters of all the networks
-                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates)
+                    # Update parameters of all the networks (also update the restricted base output
+                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates, restrict_base_output=rbo)
 
                     critic_1_losses.append(critic_1_loss)
                     critic_2_losses.append(critic_2_loss)
@@ -355,6 +360,7 @@ with experiment.train():
 
             if PROFILING:
                 print("Step time: ", time.time() - s_time)
+
         # Log to comet.ml
         experiment.log_metric("Episode_Reward", episode_reward, step=i_episode)
         std_log= np.mean(np.log(np.array(bstds)))

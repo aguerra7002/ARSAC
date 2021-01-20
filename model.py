@@ -328,7 +328,7 @@ class GaussianPolicy(nn.Module):
         mean_ret = torch.tanh(mean) * self.action_scale + self.action_bias
         action_ret = tanh_action * self.action_scale + self.action_bias
         if return_distribution:
-            return action_ret, log_prob, mean_ret, mean, std, ascle, ashft
+            return action_ret, log_prob, mean_ret, mean1, std, ascle, ashft
         else:
             return action_ret, log_prob, mean_ret
 

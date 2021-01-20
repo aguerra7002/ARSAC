@@ -26,7 +26,7 @@ critic_filename = "critic.model"
 
 parser = argparse.ArgumentParser(description='PyTorch AutoRegressiveFlows-RL Args')
 # Once we get Mujoco then we will use this one
-parser.add_argument('--experiment_id', default="157216c90f8e400bab5264211ede1646",
+parser.add_argument('--experiment_id', default="14ae9513a53a42bf89b65d02f6cdc5e7",
                     help='Experiment ID we want to transfer our experiment from')
 parser.add_argument('--task-name', default="walk",
                     help='Transfer task')
@@ -39,9 +39,13 @@ parser.add_argument('--transfer_critic', default=False,
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
 parser.add_argument('--num_steps', type=int, default=3000000, metavar='N',
-                    help='maximum number of steps (default: 1000000)')
+                    help='maximum number of steps (default: 3000000)')
+parser.add_argument('--start_steps', type=int, default=10000, metavar='N',
+                    help='Number of steps we take to fill the replay buffer.')
 parser.add_argument('--freeze_steps', type=int, default=20000, metavar='N',
                     help='number of steps we run without updating the flow network')
+parser.add_argument('--rbo_increase_factor', type=float, default=1.0, metavar='N',
+                    help='determines how much we increase the restrict_base_output parameter after each episode.')
 parser.add_argument('--cuda', action="store_true", default=False,
                     help='run on CUDA (default: False)')
 parser.add_argument('--device_id', type=int, default=0, metavar='G',
@@ -117,9 +121,6 @@ experiment.log_asset_data(json_str, name="args")
 if args.pixel_based:
     state_getter_main = PixelState(1, args.env_name, args.resolution, state_space_size)
 
-# Memory
-memory = ReplayBuffer(args.replay_size)
-
 # Will hold ALL of our results and will be what we log to comet
 eval_dicts = []
 
@@ -131,6 +132,10 @@ stop_training = False
 action_lookback = max(args.action_lookback_actor, args.action_lookback_critic)
 state_lookback = max(args.state_lookback_actor, args.state_lookback_critic)
 
+# Memory
+memory = ReplayBuffer(args.replay_size)
+rbo = args.restrict_base_output
+print("RBO", rbo)
 with experiment.train():
     for i_episode in itertools.count(1):
 
@@ -174,7 +179,7 @@ with experiment.train():
             # prev_time = time.time()
 
             # Unfreeze the flow network if we are past the number of freeze steps
-            if total_numsteps == args.freeze_steps + 1:
+            if total_numsteps == args.start_steps + args.freeze_steps + 1:
                 agent.require_flow_grad(True)
 
             if len(memory) > args.start_steps: #args.batch_size * :
@@ -184,7 +189,7 @@ with experiment.train():
                     # print("update params:")  # TODO: Remove later
                     # What we had before
 
-                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates)
+                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates, restrict_base_output=rbo)
                     # print("Entropy Parameter", alpha)
                     # Log to Comet.ml
                     # experiment.log_metric("Critic_1_Loss", critic_1_loss, step=updates)
@@ -332,10 +337,14 @@ with experiment.train():
                 # Now we are done evaluating. Before we leave, we have to set the state properly.
                 env.set_state_after_eval(temp_state)
 
-            if total_numsteps >= args.num_steps:
+            if total_numsteps >= args.num_steps + args.start_steps:
                 stop_training = True
                 break
             # print("Step time: ", time.time() - s_time)
+
+        # Here is where we increase the rbo factor.
+        if total_numsteps >= args.start_steps:
+            rbo *= args.rbo_increase_factor
         # Log to comet.ml
         experiment.log_metric("Episode_Reward", episode_reward, step=i_episode)
         # Log to console

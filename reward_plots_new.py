@@ -226,6 +226,59 @@ quadruped_transfer_dict2 = {"SAC": ['a3116a2d342049258b3b4c078b0900a9',
                                                    '6e290fcc6e2948d2980aabd4ffe28ed0', #<- this experiment may have incomplete data
                                                    'ae1f7e8c878c4dcbb82e5850aef9179a']} # Transferred from a8f7092ff8de48cc97b7e8dd2e18849a
 
+# DM Control Transfer tests, this time with hidden dim 32, AutoEnt on, 256 Batch Size
+walker_transfer_dict3 = {"SAC" : ["3193d027636e4593a8ba71a84ee21638",
+                                    "6528837f8fc94920a472fe827f98ca63",
+                                    "8e8450864b264fe18ed309a9e6fc6866",
+                                    "b6e6f26e60794ce69943c75138c7731c",
+                                    "29af5554dec04009a3e56a581dd420a8"],
+                 "SAC w/ base transfer": ['301744b1fde8410895c22c614f0ecf61',
+                                          'ac321ae9df2e4f40a5d000ea0ef274d4',
+                                          '7d5e09f9d689494eb01651d6e41a58a1',
+                                          '32ce54fcfaf141dc8bf170a677ed34f8',
+                                          'ad4dee742c5744cd82c4107d6b85d1bf'],
+                 "ARSAC": ["74e14df64e214d8ab68fcdb91bd44cb8",
+                            "1cf5297adce049699f860e1438707bab",
+                            "5d1f3bea197a4530b8cf22ceb8d44f0f",
+                            "deb002867c1747b39e62bbbf182b8e68",
+                            "ed83960ca38e4807be3a659caa9302e5"],
+                 "ARSAC w/ flow transfer": ['2cd4a0b7d05c4fe38d3064e8d11ad66c',
+                                            '7795ca6c124e424b89b6b03480a9048f',
+                                            '0eab530d9dc144889dda032648ea1930',
+                                            '0ce65345a8e74f5dae2731cc1d05bdaa',
+                                            'b507afbc76104a388f6dd3dc759d2a94'],
+                 "ARSAC w/ base + flow transfer": ['7a1a6e5a81c94b6bbb23ed84e525904e',
+                                                   '3097ffdbbdc4439a8ee9b420ecd50ab2',
+                                                   'a35e002acd4a4bf6aa162cdc594b8520',
+                                                   '1cd85c5aa2114ecd8c6380e1d7e198be',
+                                                   '0c4129b85af347fda4202feb7ec796aa']}
+
+quadruped_transfer_dict3 = {"SAC" : ["0eeb188dba754404a41ed786a52d5ac8",
+                                    "55bb145d0b4b4921a60a154504160e0b",
+                                    "cc69bfb3e07d433dbe49977dc4a34b79",
+                                    "2e1b579760ac4ff68adf3a4e11181803",
+                                    "4f295c37b35a4269a016390cd522ffe3"],
+                 "SAC w/ base transfer": ['2daf01fa614745fab88ade4b0b2413a4',
+                                          'f2ed356fefc54f708673872ca7f451d5',
+                                          '12e67f788a4147f6a5eaecdb27bb0740',
+                                          '34fa07b91d24403b8b939a85d822f0c2',
+                                          '737aac92b47a4a669ee053dda10e751b'],
+                 "ARSAC": ["56911a04f19347898de823f159cf0f52",
+                            "41b6b5e0401945cfb26f6bbe201720a3",
+                            "bb9705e69aad45cd85395eefb1f267b0",
+                            "a56a0c85760c466bb24daa092041a4fe",
+                            "674eca50665948a089295335e8de13b0"],
+                 "ARSAC w/ flow transfer": ['7b5892c88a91488fbb55d92c9d518b52',
+                                            'f648f350218b41db9a807b70823b07e3',
+                                            '58ff405864be4a2fb3c95e84347b73c8',
+                                            'ea39b604d2e347a491bbf208820179a5',
+                                            'e7e728492a454b4a9494f70a3cb84633'],
+                 "ARSAC w/ base + flow transfer": ['daf94c0c85414a38a89c10b461bb3109',
+                                                   'd3bcf58af13746b2b345d44977c9cbc9',
+                                                   'e909b4b55e3541a1a435502bd40f06af',
+                                                   '2779549c387f4fc688b10fbfaf7edd30',
+                                                   '35c9d04f91ed47ca8b6d1d0b78245cb9']}
+
 # DM Control Base Tests (Batch size 128, ARSAC-3, hidden dim 32)
 walker_walk_base_dict = {"SAC": ['5486ada760c640f7b5fbdd3680ce8258'],
                          "ARSAC-3": ['848a8336f98343dca7e09ff80e221dba']}
@@ -540,10 +593,16 @@ walker_walk_pixel_dict = {"SAC": ['6392d6c1f77547429ab16c46d20f339c',
                                      '',
                                      '']}
 
-to_plot_transfer_dict = {
+to_plot_transfer_dict2 = {
     "Walker Run Transfer AutoEnt 2x256HS" : walker_transfer_dict2,
     "Quadruped Run Transfer AutoEnt 2x256HS" : quadruped_transfer_dict2,
     "Hopper Hop Transfer AutoEnt 2x256HS" : hopper_transfer_dict2
+}
+
+to_plot_transfer_dict3 = {
+    "Walker Run Transfer AutoEnt 1x32HS" : walker_transfer_dict3,
+    "Quadruped Run Transfer AutoEnt 1x32HS" : quadruped_transfer_dict3,
+    #"Hopper Hop Transfer AutoEnt 1x32HS" : hopper_transfer_dict3
 }
 
 to_plot_dict = {
@@ -600,8 +659,8 @@ if __name__ == "__main__":
     # Specify the folder we want to save the visualizations to
     base_rew_dir = "reward_plots_new/"
     base_logscale_dir = "log_scale_plots_new/"
-    for env in to_plot_dict5.keys():
-        env_exp_dict = to_plot_dict5[env]
+    for env in to_plot_transfer_dict3.keys():
+        env_exp_dict = to_plot_transfer_dict3[env]
         print("Visualizing ", env)
         plot_rewards(env_exp_dict, base_rew_dir, REWARD_KEY)
         plot_rewards(env_exp_dict, base_logscale_dir, LOG_SCALE_KEY)
