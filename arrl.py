@@ -34,8 +34,6 @@ class ARRL(object):
         self.target_update_interval = args.target_update_interval
         self.automatic_entropy_tuning = args.automatic_entropy_tuning
 
-        self.restrict_base_output = args.restrict_base_output
-
         self.device = torch.device("cuda" if args.cuda else "cpu")
         self.pixel_based = args.pixel_based
 
@@ -202,7 +200,7 @@ class ARRL(object):
         if self.restrict_base_output > 0.0:
             norm_type = 'fro' if self.use_l2_reg else 'nuc'
             norms = torch.norm(policy_mean, dim=1, p=norm_type).mean() + torch.norm(policy_std.log(), dim=1, p=norm_type).mean()
-            policy_loss += norms * self.restrict_base_output
+            policy_loss += norms * restrict_base_output
 
         # Finally we update the policy
         self.policy_optim.zero_grad()

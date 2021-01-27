@@ -18,15 +18,24 @@ walker_run_base_dict4 = {
     "ARSAC": ['cd2b9f003e404a8daff56dea22e0bcb3']
 }
 
+walker_run_base_dict5 = {
+    "SAC" : ["3193d027636e4593a8ba71a84ee21638"],
+    "ARSAC" : ["74e14df64e214d8ab68fcdb91bd44cb8"]
+}
+
 to_plot_dict_2x256 = {
-    "Walker Run AutoEnt 2x256HS": walker_run_base_dict4,
+    "Walker Run AutoEnt 2x256HS": walker_run_base_dict4
+}
+
+to_plot_dict_1x32 = {
+"Walker Run AutoEnt 1x32HS": walker_run_base_dict5
 }
 
 if __name__ == '__main__':
     sac_mi = []
     arsac_mi = []
     base_mi = []
-    plot_dict = to_plot_dict_2x256
+    plot_dict = to_plot_dict_1x32
     x_axis = range(10, 301, 5)
     for key in plot_dict:
         os.chdir(setup_directory(key))
