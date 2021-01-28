@@ -23,12 +23,18 @@ walker_run_base_dict5 = {
     "ARSAC" : ["74e14df64e214d8ab68fcdb91bd44cb8"]
 }
 
+cheetah_run_base_dict5 = {
+    "SAC": ["63585d83dafb49b99316d6814b4bbe03"],
+    "ARSAC": ["2f23146b1baa45c8806a081cbfb9023e"]
+}
+
 to_plot_dict_2x256 = {
     "Walker Run AutoEnt 2x256HS": walker_run_base_dict4
 }
 
 to_plot_dict_1x32 = {
-"Walker Run AutoEnt 1x32HS": walker_run_base_dict5
+    # "Walker Run AutoEnt 1x32HS": walker_run_base_dict5,
+    "Cheetah Run AutoEnt 1x32HS": cheetah_run_base_dict5
 }
 
 if __name__ == '__main__':

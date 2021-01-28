@@ -40,9 +40,9 @@ parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
 parser.add_argument('--num_steps', type=int, default=3000000, metavar='N',
                     help='maximum number of steps (default: 3000000)')
-parser.add_argument('--start_steps', type=int, default=10000, metavar='N',
+parser.add_argument('--start_steps', type=int, default=20000, metavar='N',
                     help='Number of steps we take to fill the replay buffer.')
-parser.add_argument('--freeze_steps', type=int, default=20000, metavar='N',
+parser.add_argument('--freeze_steps', type=int, default=0, metavar='N',
                     help='number of steps we run without updating the flow network')
 parser.add_argument('--rbo_increase_factor', type=float, default=1.0, metavar='N',
                     help='determines how much we increase the restrict_base_output parameter after each episode.')
@@ -160,7 +160,7 @@ with experiment.train():
             # s_time = prev_time
 
             if args.start_steps > total_numsteps:
-                action = env.action_space.sample()  # Sample random action
+                action = agent.select_action(state, prev_states, prev_actions, random_base=args.random_base_train)
             else:
 
                 # Sample action from policy, adding noise to state if we want to
