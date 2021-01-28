@@ -197,7 +197,7 @@ class ARRL(object):
         policy_loss += self.policy.get_reg_loss(lambda_reg=self.lambda_reg, use_l2_reg=self.use_l2_reg)
 
         # Add loss if we choose to restrict the output of the network
-        if self.restrict_base_output > 0.0:
+        if restrict_base_output > 0.0:
             norm_type = 'fro' if self.use_l2_reg else 'nuc'
             norms = torch.norm(policy_mean, dim=1, p=norm_type).mean() + torch.norm(policy_std.log(), dim=1, p=norm_type).mean()
             policy_loss += norms * restrict_base_output
