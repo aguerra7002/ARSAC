@@ -56,7 +56,7 @@ def plot_log_scale(experiment_ids, title, save_dir):
     #axs.legend(axs.get_lines(), experiment_dict.keys(), prop={'size': 10}, title="Lookback")
     fig.savefig(save_dir + title.replace(" ", "_") + "_log_scale.pdf")
 
-def run_eval_episode(exp_id, title, plot_agent=False, eval=True, actor_filename='actor.model'):
+def run_eval_episode(exp_id, title, plot_agent=False, eval=True, actor_filename='actor.model', override_task=None):
     print("Running eval episode for " + exp_id + " (" + title + ")")
     experiment = comet_api.get_experiment(project_name=project_name,
                                           workspace=workspace,
@@ -70,7 +70,7 @@ def run_eval_episode(exp_id, title, plot_agent=False, eval=True, actor_filename=
     args.__dict__ = experiment.get_asset(args_asset_id, return_type="json")
 
     transfer_domain = args.env_name
-    transfer_task = args.task_name
+    transfer_task = args.task_name if override_task == None else override_task
     env = EnvWrapper(transfer_domain, transfer_task, args.pixel_based,
                      720)  # Make it high res bc we are just visualizing it
 
@@ -344,14 +344,19 @@ cheetah_run_base_dict5 = {
     "ARSAC": ["5ab462af89fd4f3ca670838c252d8dc8"]
 }
 
+walker_rbo_increase_dict = {
+    "ARSAC": ["f9279c0fd1ac4cc9a400ce5ed2b0fdba"]
+}
+
 to_plot_dict_1x32 = {
     "Walker Walk AutoEnt 1x32HS": walker_walk_base_dict5,
-    "Walker Run AutoEnt 1x32 HS": walker_run_base_dict5,
-    "Hopper Stand AutoEnt 1x32 HS": hopper_stand_base_dict5,
-    "Hopper Hop AutoEnt 1x32 HS": hopper_hop_base_dict5,
-    "Quadruped Walk AutoEnt 1x32 HS": quadruped_walk_base_dict5,
-    "Quadruped Run AutoEnt 1x32 HS": quadruped_run_base_dict5,
-    "Cheetah Run AutoEnt 1x32 HS": cheetah_run_base_dict5
+    # "Walker Run AutoEnt 1x32 HS": walker_run_base_dict5,
+    # "Hopper Stand AutoEnt 1x32 HS": hopper_stand_base_dict5,
+    # "Hopper Hop AutoEnt 1x32 HS": hopper_hop_base_dict5,
+    # "Quadruped Walk AutoEnt 1x32 HS": quadruped_walk_base_dict5,
+    # "Quadruped Run AutoEnt 1x32 HS": quadruped_run_base_dict5,
+    # "Cheetah Run AutoEnt 1x32 HS": cheetah_run_base_dict5,
+    # "Walker Run RBO AutoEnt 1x32 HS": walker_rbo_increase_dict
 }
 
 to_plot_dict_2x256 = {
@@ -367,31 +372,33 @@ to_plot_dict_2x256 = {
 if __name__ == "__main__":
     # Walker Walk (HD 1x32, BS 256, No AutoEnt Tuning)
     for key in to_plot_dict_1x32:
-        arsac_exp_id = to_plot_dict_1x32[key]["ARSAC"][0]
-        sac_exp_id = to_plot_dict_1x32[key]["SAC"][0]
         dir_name = key
         # Will create all the necessary directories and go into the proper directory for plotting
         os.chdir(setup_directory(dir_name))
-        actions, means, stds, shifts, scales, rewards, log_probs = run_eval_episode(arsac_exp_id, key, eval=False)
 
-        actions_sac, means_sac, stds_sac, _, _, rewards_sac, log_probs_sac = run_eval_episode(sac_exp_id, key, eval=False)
-        print("ARSAC Log Prob", np.mean(log_probs), "SAC Log Prob", np.mean(log_probs_sac))
+        arsac_exp_id = to_plot_dict_1x32[key]["ARSAC"][0]
+        actions, means, stds, shifts, scales, rewards, log_probs = run_eval_episode(arsac_exp_id, key, override_task="run")
+
+        #sac_exp_id = to_plot_dict_1x32[key]["SAC"][0]
+        #actions_sac, means_sac, stds_sac, _, _, rewards_sac, log_probs_sac = run_eval_episode(sac_exp_id, key, eval=False)
+        #print("ARSAC Log Prob", np.mean(log_probs), "SAC Log Prob", np.mean(log_probs_sac))
+
         title = key
         print("Episode Reward", sum(rewards))
         plot_action(stds, means, shifts, scales, title)
-        amax = np.max(actions)
-        amin = np.min(actions)
-        if amax >= 1 or amin <= -1:
-            to_use = np.arctanh(0.99999 * (2*actions - (amax + amin)) / (amax - amin))
-        else:
-            to_use = np.arctanh(actions)
-        amax = np.max(actions_sac)
-        amin = np.min(actions_sac)
-        if amax >= 1 or amin <= -1:
-            to_use2 = np.arctanh(0.99999 * (2 * actions_sac - (amax + amin)) / (amax - amin))
-        else:
-            to_use2 = np.arctanh(actions_sac)
-        plot_action_corr(to_use, means, shifts, title, actions_sac=to_use2, means_sac=means_sac)
+        # amax = np.max(actions)
+        # amin = np.min(actions)
+        # if amax >= 1 or amin <= -1:
+        #     to_use = np.arctanh(0.99999 * (2*actions - (amax + amin)) / (amax - amin))
+        # else:
+        #     to_use = np.arctanh(actions)
+        # amax = np.max(actions_sac)
+        # amin = np.min(actions_sac)
+        # if amax >= 1 or amin <= -1:
+        #     to_use2 = np.arctanh(0.99999 * (2 * actions_sac - (amax + amin)) / (amax - amin))
+        # else:
+        #     to_use2 = np.arctanh(actions_sac)
+        # plot_action_corr(to_use, means, shifts, title, actions_sac=to_use2, means_sac=means_sac)
         # Reset to original directory (go up two levels, ALWAYS)
         os.chdir("../../")
         print("Done.")

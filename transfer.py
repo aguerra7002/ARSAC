@@ -44,7 +44,7 @@ parser.add_argument('--start_steps', type=int, default=20000, metavar='N',
                     help='Number of steps we take to fill the replay buffer.')
 parser.add_argument('--freeze_steps', type=int, default=0, metavar='N',
                     help='number of steps we run without updating the flow network')
-parser.add_argument('--rbo_increase_factor', type=float, default=1.05, metavar='N',
+parser.add_argument('--rbo_increase_factor', type=float, default=1.003, metavar='N',
                     help='determines how much we increase the restrict_base_output parameter after each episode.')
 parser.add_argument('--cuda', action="store_true", default=False,
                     help='run on CUDA (default: False)')

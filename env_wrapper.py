@@ -106,7 +106,7 @@ class EnvWrapper:
 
     def set_state_after_eval(self, before_eval_state):
         if self.type == EnvWrapper.GYM:
-            self.env.set_state(before_eval_state)
+            self.env.set_state(before_eval_state.qpos, before_eval_state.qvel)
         elif self.type == EnvWrapper.DM_CONTROL:
             with self.env.physics.reset_context():
                 self.env.physics.data.qpos[:] = before_eval_state[0]

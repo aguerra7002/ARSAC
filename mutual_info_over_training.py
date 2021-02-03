@@ -33,7 +33,7 @@ to_plot_dict_2x256 = {
 }
 
 to_plot_dict_1x32 = {
-    # "Walker Run AutoEnt 1x32HS": walker_run_base_dict5,
+    #"Walker Run AutoEnt 1x32HS": walker_run_base_dict5,
     "Cheetah Run AutoEnt 1x32HS": cheetah_run_base_dict5
 }
 
@@ -42,7 +42,7 @@ if __name__ == '__main__':
     arsac_mi = []
     base_mi = []
     plot_dict = to_plot_dict_1x32
-    x_axis = range(10, 301, 5)
+    x_axis = range(10, 251, 5)
     for key in plot_dict:
         os.chdir(setup_directory(key))
         base_dict = plot_dict[key]
@@ -62,10 +62,11 @@ if __name__ == '__main__':
                     run_eval_episode(sac_exp_id, key, plot_agent=False, eval=True, actor_filename=actor_filename)
             # Compute the log probability for the base distribution of ARSAC. We do this by resampling,
             # which should be fine because this is averaged over 1000 steps.
-            arsac_mi.append(np.mean(log_probs))
-            base_mi.append(-torch.mean(base_log_probs))
-            sac_mi.append(np.mean(sac_log_probs))
+            arsac_mi.append(np.mean(log_probs) - np.log(np.mean(np.exp(log_probs))))
+            base_mi.append(torch.mean(-base_log_probs) - torch.log(torch.mean(torch.exp(-base_log_probs))))
+            sac_mi.append(np.mean(sac_log_probs) - np.log(np.mean(np.exp(sac_log_probs))))
         # Now we should have all the mutual information stats for training
+        print(base_mi, arsac_mi, sac_mi)
         plt.plot(x_axis, arsac_mi, label="ARSAC")
         plt.plot(x_axis, base_mi, label="ARSAC Base")
         plt.plot(x_axis, sac_mi, label="SAC")

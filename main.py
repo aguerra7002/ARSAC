@@ -37,13 +37,13 @@ parser.add_argument('--use_gated_transform', type=bool, default=False, metavar='
                     help='Use Inverse Autoregressive Flow')
 parser.add_argument('--ignore_scale', type=bool, default=False, metavar='G',
                     help='Causes normal autoregressive flow to only have a shift component')
-parser.add_argument('--state_lookback_actor', type=int, default=3, metavar='G',
+parser.add_argument('--state_lookback_actor', type=int, default=0, metavar='G',
                     help='Determines whether or not to use previous states as well as actions in actor network')
-parser.add_argument('--action_lookback_actor', type=int, default=3, metavar='G',
+parser.add_argument('--action_lookback_actor', type=int, default=5, metavar='G',
                     help='Use phi network to de-correlate time dependence and state by using previous action(s)')
-parser.add_argument('--state_lookback_critic', type=int, default=3, metavar='G',
+parser.add_argument('--state_lookback_critic', type=int, default=0, metavar='G',
                     help='Determines how many states we look back when estimating rewards')
-parser.add_argument('--action_lookback_critic', type=int, default=3, metavar='G',
+parser.add_argument('--action_lookback_critic', type=int, default=0, metavar='G',
                     help='Determines how many actions we look back when estimating rewards')
 parser.add_argument('--add_state_noise', type=bool, default=False, metavar='G',
                     help='Adds a small amount of Gaussian noise to the state')
@@ -75,7 +75,7 @@ parser.add_argument('--batch_size', type=int, default=256, metavar='N',
                     help='batch size (default: 128)')
 parser.add_argument('--num_steps', type=int, default=3000000, metavar='N',
                     help='maximum number of steps (default: 1000000)')
-parser.add_argument('--hidden_size', type=int, default=256, metavar='N',
+parser.add_argument('--hidden_size', type=int, default=32, metavar='N',
                     help='hidden size (default: 256)')
 parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
                     help='model updates per simulator step (default: 1)')
