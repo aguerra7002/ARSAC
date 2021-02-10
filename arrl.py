@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch.optim import Adam
 from utils import soft_update, hard_update
 from pixelstate import PixelState
-from model import GaussianPolicy, QNetwork, DeterministicPolicy, ConvQNetwork
+from model import GaussianPolicy, QNetwork, ConvQNetwork, GaussianPolicy2
 
 # If we want to Time Profile
 PROFILING = False
@@ -70,12 +70,14 @@ class ARRL(object):
                                          self.ignore_scale, args.hidden_dim_base, args.pixel_based).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
+        elif self.policy_type == "Gaussian2":
+            # TODO: What other stuff should be here?
+            self.policy = GaussianPolicy2(num_inputs, action_space.shape[0], args.hidden_size, action_space,
+                                         self.action_lookback_actor, args.hidden_dim_base).to(self.device)
+            self.policy_optim = Adam(self.policy.parameters(), lr = args.lr)
         else:
-            self.alpha = 0
-            self.automatic_entropy_tuning = False
-            self.policy = DeterministicPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(
-                self.device)
-            self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
+            print("Shouldn't be here")
+            exit(0)
 
 
     def select_action(self, state, prev_states=None, prev_actions=None, eval=False, return_distribution=False, random_base=False, return_prob=False):
@@ -269,4 +271,122 @@ class ARRL(object):
                 self.policy.load_state_dict(loaded_dict)
         if critic_path is not None:
             self.critic.load_state_dict(torch.load(critic_path))
+
+
+    def update_parameters2(self, memory, batch_size, updates, restrict_base_output=0.0):
+        # Sample a batch from memory
+        if PROFILING:
+            print("update parameters")
+            prev_time = time.time()
+
+        prev_state_batch, prev_action_batch, state_batch, action_batch, reward_batch, next_state_batch, mask_batch = \
+            memory.sample(batch_size=batch_size)
+        if self.pixel_based:
+            state_batch = self.state_getter.get_pixel_state(state_batch)
+            next_state_batch = self.state_getter.get_pixel_state(next_state_batch)
+            if None not in prev_state_batch:
+                prev_state_batch = self.state_getter.get_pixel_state(prev_state_batch)
+
+        if PROFILING:
+            print("\tBatch Sample:", time.time() - prev_time)
+            prev_time = time.time()
+
+        prev_next_state_batch = None
+        prev_next_action_batch = None
+
+        if None not in prev_state_batch:
+            # we need to put together prev_next_state_batch for feeding to the actor network later.
+            if self.state_lookback_actor > 0 or self.state_lookback_critic > 0:
+                cutoff = 3 if self.pixel_based else self.state_space_size
+                prev_next_state_batch = np.concatenate((prev_state_batch[:, cutoff:], state_batch), axis=1)
+                prev_next_state_batch = torch.cuda.FloatTensor(prev_next_state_batch)
+            prev_state_batch = torch.cuda.FloatTensor(prev_state_batch)
+
+        if None not in prev_action_batch:
+            # Same as with states, need to compute the prev_next_action_batch
+            prev_next_action_batch = np.concatenate((prev_action_batch[:, self.action_space_size:], action_batch), axis=1)
+            prev_next_action_batch = torch.cuda.FloatTensor(prev_next_action_batch)
+            prev_action_batch = torch.cuda.FloatTensor(prev_action_batch).to(self.device)
+
+        state_batch = torch.FloatTensor(state_batch).to(self.device)
+        next_state_batch = torch.FloatTensor(next_state_batch).to(self.device)
+        action_batch = torch.FloatTensor(action_batch).to(self.device)
+        reward_batch = torch.FloatTensor(reward_batch).to(self.device).unsqueeze_(1)
+        mask_batch = torch.FloatTensor(mask_batch).to(self.device).unsqueeze_(1)
+
+        if PROFILING:
+            print("\tSetup:", time.time() - prev_time)
+            prev_time = time.time()
+
+        with torch.no_grad():
+            next_state_action, next_state_log_pi, _ = \
+                self.policy.sample(next_state_batch, prev_next_state_batch, prev_next_action_batch)
+            qf1_next_target, qf2_next_target = self.critic_target(next_state_batch, next_state_action,
+                                                                  prev_next_state_batch, prev_next_action_batch)
+            min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
+            next_q_value = reward_batch + mask_batch * self.gamma * min_qf_next_target
+
+            if PROFILING:
+                print("\tAct and Critic:", time.time() - prev_time)
+                prev_time = time.time()
+
+        # Two Q-functions to mitigate positive bias in the policy improvement step
+        qf1, qf2 = self.critic(state_batch, action_batch, prev_state_batch, prev_action_batch)
+
+        qf1_loss = F.mse_loss(qf1, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
+        qf2_loss = F.mse_loss(qf2, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
+
+        qf_loss = qf1_loss + qf2_loss
+        self.critic_optim.zero_grad()
+        qf_loss.backward()
+        self.critic_optim.step()
+
+        pi, log_pi, _, policy_mean, policy_std, _, _ = \
+            self.policy.sample(state_batch, prev_state_batch, prev_action_batch, return_distribution=True)
+
+        qf1_pi, qf2_pi = self.critic(state_batch, pi, prev_state_batch, prev_action_batch)
+        min_qf_pi = torch.min(qf1_pi, qf2_pi)
+
+
+        policy_loss = ((self.alpha * log_pi) - min_qf_pi).mean()  # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
+
+        # Add in regularization to policy here.
+        policy_loss += self.policy.get_reg_loss(lambda_reg=self.lambda_reg, use_l2_reg=self.use_l2_reg)
+
+        # Add loss if we choose to restrict the output of the network
+        if restrict_base_output > 0.0:
+            norm_type = 'fro' if self.use_l2_reg else 'nuc'
+            norms = torch.norm(policy_mean, dim=1, p=norm_type).mean() + torch.norm(policy_std.log(), dim=1, p=norm_type).mean()
+            policy_loss += norms * restrict_base_output
+
+        # Finally we update the policy
+        self.policy_optim.zero_grad()
+        policy_loss.backward()
+        self.policy_optim.step()
+
+        if PROFILING:
+            print("\tCritic Loss:", time.time() - prev_time)
+            prev_time = time.time()
+
+        if self.automatic_entropy_tuning:
+            alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+
+            self.alpha_optim.zero_grad()
+            alpha_loss.backward()
+            self.alpha_optim.step()
+
+            self.alpha = self.log_alpha.exp()
+            alpha_tlogs = self.alpha.clone()  # For TensorboardX logs
+        else:
+            alpha_loss = torch.tensor(0.).to(self.device)
+            alpha_tlogs = torch.tensor(self.alpha)  # For TensorboardX logs
+
+        if updates % self.target_update_interval == 0:
+            soft_update(self.critic_target, self.critic, self.tau)
+
+        if PROFILING:
+            print("\tBackprop:", time.time() - prev_time)  # TODO: Remove later
+            prev_time = time.time()
+
+        return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item()
 

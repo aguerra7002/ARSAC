@@ -7,6 +7,7 @@ LOG_SIG_MAX = 5
 LOG_SIG_MIN = -20
 epsilon = 1e-6
 
+
 # Initialize Policy weights
 def weights_init_(m):
     if isinstance(m, nn.Linear):
@@ -39,7 +40,6 @@ class ConvQNetwork(nn.Module):
         self.num_channels = num_channels
         self.num_actions = num_actions
         self.action_lookback = action_lookback
-
 
         # Q1 architecture
         self.conv1 = nn.Conv2d(num_channels * (state_lookback + 1), 32, 4, stride=2)
@@ -95,6 +95,7 @@ class ConvQNetwork(nn.Module):
 
         return x1, x2
 
+
 class QNetwork(nn.Module):
     def __init__(self, num_inputs, state_lookback, num_actions, action_lookback, hidden_dim):
         super(QNetwork, self).__init__()
@@ -119,16 +120,16 @@ class QNetwork(nn.Module):
     def forward(self, state, action, previous_states, previous_actions):
 
         if self.state_lookback > 0:
-            s1 = torch.cat((previous_states[:,-self.num_inputs * self.state_lookback:], state), 1)
+            s1 = torch.cat((previous_states[:, -self.num_inputs * self.state_lookback:], state), 1)
         else:
             s1 = state
         if self.action_lookback > 0:
-            a1 = torch.cat((previous_actions[:,-self.num_actions * self.action_lookback:], action), 1)
+            a1 = torch.cat((previous_actions[:, -self.num_actions * self.action_lookback:], action), 1)
         else:
             a1 = action
 
         xu = torch.cat([s1, a1], 1)
-        
+
         x1 = F.relu(self.linear1(xu))
         x1 = F.relu(self.linear2(x1))
         x1 = self.linear3(x1)
@@ -156,7 +157,7 @@ class GaussianPolicy(nn.Module):
             self.mean_linear_theta = nn.Linear(hidden_dim_base, num_actions)
             self.log_std_linear_theta = nn.Linear(hidden_dim_base, num_actions)
         else:
-            self.conv1 = nn.Conv2d(3 * (state_lookback + 1), 32, 4, stride=2) # image has 3 channels
+            self.conv1 = nn.Conv2d(3 * (state_lookback + 1), 32, 4, stride=2)  # image has 3 channels
             self.conv2 = nn.Conv2d(32, 64, 4, stride=2)
             self.conv3 = nn.Conv2d(64, 128, 4, stride=2)
             self.conv4 = nn.Conv2d(128, 256, 4, stride=2)
@@ -217,12 +218,12 @@ class GaussianPolicy(nn.Module):
                     if 'weight' in name:
                         reg_loss += torch.norm(param, p=norm_type)
         else:
-            pass # TODO; implement regularization for CNN layers
+            pass  # TODO; implement regularization for CNN layers
         return reg_loss * lambda_reg
 
     def forward_theta(self, state, previous_states):
         if self.state_lookback > 0:
-            inp = torch.cat((previous_states[:,-self.state_space_size * self.state_lookback:], state), 1)
+            inp = torch.cat((previous_states[:, -self.state_space_size * self.state_lookback:], state), 1)
         else:
             inp = state
 
@@ -241,7 +242,7 @@ class GaussianPolicy(nn.Module):
         # Soft learning:
         log_std = LOG_SIG_MAX - F.softplus(LOG_SIG_MAX - log_std)
         log_std = LOG_SIG_MIN + F.softplus(log_std - LOG_SIG_MIN)
-        #log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX) # <- what we had before
+        # log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX) # <- what we had before
         return mean, log_std
 
     def forward_phi(self, prev_actions):
@@ -254,7 +255,7 @@ class GaussianPolicy(nn.Module):
             # Using inverse ar flows
             sigma = torch.sigmoid(self.log_scale_linear_phi(x))
             m = self.shift_linear_phi(x)
-            #m = torch.clamp(m) # TODO: See if we need to clamp?
+            # m = torch.clamp(m) # TODO: See if we need to clamp?
             return m, sigma
         else:
             shift = self.shift_linear_phi(x)
@@ -263,7 +264,7 @@ class GaussianPolicy(nn.Module):
             # Soft learning
             log_scale = LOG_SIG_MAX - F.softplus(LOG_SIG_MAX - log_scale)
             log_scale = LOG_SIG_MIN + F.softplus(log_scale - LOG_SIG_MIN)
-            #log_scale = torch.clamp(log_scale, min=LOG_SIG_MIN, max=LOG_SIG_MAX) <- What we had before.
+            # log_scale = torch.clamp(log_scale, min=LOG_SIG_MIN, max=LOG_SIG_MAX) <- What we had before.
             return shift, log_scale
 
     def sample(self, state, prev_states, prev_actions, return_distribution=False, random_base=False):
@@ -287,7 +288,7 @@ class GaussianPolicy(nn.Module):
             if self.use_gated_transform:
                 # Inverse ar transform
                 action = sigma * base_action + (1 - sigma) * m
-                log_prob -= sigma.log() # Convert back to log so prb is additive
+                log_prob -= sigma.log()  # Convert back to log so prb is additive
                 # For logging
                 ascle = sigma
                 ashft = m
@@ -337,46 +338,142 @@ class GaussianPolicy(nn.Module):
         self.action_bias = self.action_bias.to(device)
         return super(GaussianPolicy, self).to(device)
 
-    
-    
-"""
-TODO: Adjust ARRL to use a Deterministic Policy
-"""
-class DeterministicPolicy(nn.Module):
-    def __init__(self, num_inputs, num_actions, hidden_dim, action_space=None):
-        super(DeterministicPolicy, self).__init__()
-        self.linear1 = nn.Linear(num_inputs, hidden_dim)
-        self.linear2 = nn.Linear(hidden_dim, hidden_dim)
 
-        self.mean = nn.Linear(hidden_dim, num_actions)
-        self.noise = torch.Tensor(num_actions)
+
+
+"""
+Here is the experimental class for using previous actions to estimate a prior on actions.
+"""
+
+class GaussianPolicy2(nn.Module):
+
+    def __init__(self, num_inputs, num_actions, hidden_dim, action_space=None, action_lookback=0, hidden_dim_base=256):
+        super(GaussianPolicy, self).__init__()
+        # Specifying the Theta Network (will map states to some latent space equal in dimension to action space)
+        self.hidden_dim_base = hidden_dim_base
+        # This will take in the state along with the action prior
+        self.linear_theta_1 = nn.Linear(num_inputs + num_actions, hidden_dim_base)
+        if hidden_dim_base == 256:
+            self.linear_theta_2 = nn.Linear(hidden_dim_base, hidden_dim_base)
+        self.mean_linear_theta = nn.Linear(hidden_dim_base, num_actions)
+        self.log_std_linear_theta = nn.Linear(hidden_dim_base, num_actions)
+
+        self.state_space_size = num_inputs
+        self.action_space_size = num_actions
+        # How far back we look with the phi network
+        self.action_lookback = action_lookback
+        # This will be our prior network
+        if action_lookback > 0:
+            self.linear_phi_1 = nn.Linear(num_actions * action_lookback, hidden_dim)
+            self.linear_phi_2 = nn.Linear(hidden_dim, hidden_dim)
+
+            self.log_scale_linear_phi = nn.Linear(hidden_dim, num_actions)
+            self.shift_linear_phi = nn.Linear(hidden_dim, num_actions)
 
         self.apply(weights_init_)
 
         # action rescaling
         if action_space is None:
-            self.action_scale = 1.
-            self.action_bias = 0.
+            self.action_scale = torch.tensor(1.)
+            self.action_bias = torch.tensor(0.)
         else:
             self.action_scale = torch.FloatTensor(
                 (action_space.high - action_space.low) / 2.)
             self.action_bias = torch.FloatTensor(
                 (action_space.high + action_space.low) / 2.)
 
-    def forward(self, state):
-        x = F.relu(self.linear1(state))
-        x = F.relu(self.linear2(x))
-        mean = torch.tanh(self.mean(x)) * self.action_scale + self.action_bias
-        return mean
+    # Tracks the l1 or l2 loss
+    def get_reg_loss(self, lambda_reg=0.0, use_l2_reg=False):
+        # Don't waste time if no regularization
+        if lambda_reg == 0.0:
+            return 0
 
-    def sample(self, state):
-        mean = self.forward(state)
-        noise = self.noise.normal_(0., std=0.1)
-        noise = noise.clamp(-0.25, 0.25)
-        action = mean + noise
-        return action, torch.tensor(0.), mean
+        reg_loss = 0
+        norm_type = 'fro' if use_l2_reg else 'nuc'
+        if not self.pixel_based:
+            for name, param in self.linear_theta_1.named_parameters():
+                if 'weight' in name:
+                    reg_loss += torch.norm(param, p=norm_type)
+            for name, param in self.mean_linear_theta.named_parameters():
+                if 'weight' in name:
+                    reg_loss += torch.norm(param, p=norm_type)
+            for name, param in self.log_std_linear_theta.named_parameters():
+                if 'weight' in name:
+                    reg_loss += torch.norm(param, p=norm_type)
+            if self.hidden_dim_base == 256:
+                for name, param in self.linear_theta_2.named_parameters():
+                    if 'weight' in name:
+                        reg_loss += torch.norm(param, p=norm_type)
+        return reg_loss * lambda_reg
+
+    def forward_theta(self, state, prior):
+
+        inp = torch.cat((state, prior), 1)
+
+        x = F.relu(self.linear_theta_1(inp))
+        if self.hidden_dim_base == 256:
+            x = F.relu(self.linear_theta_2(x))
+        delta = self.mean_linear_theta(x)
+        sigma = self.log_std_linear_theta(x)
+        # Soft learning:
+        MAX = 1
+        MIN = 0
+        sigma = MAX - F.softplus(MAX - sigma)
+        sigma = MIN + F.softplus(sigma - MIN)
+
+        return delta, sigma
+
+    def forward_phi(self, prev_actions):
+
+        inp = prev_actions[:, -self.action_space_size * self.action_lookback:]
+        x = F.relu(self.linear_phi_1(inp))
+        x = F.relu(self.linear_phi_2(x))
+
+        mean = self.shift_linear_phi(x)
+        log_std = self.log_scale_linear_phi(x)
+        # Soft learning
+        log_std = LOG_SIG_MAX - F.softplus(LOG_SIG_MAX - log_std)
+        log_std = LOG_SIG_MIN + F.softplus(log_std - LOG_SIG_MIN)
+        # log_scale = torch.clamp(log_scale, min=LOG_SIG_MIN, max=LOG_SIG_MAX) <- What we had before.
+        return mean, log_std
+
+    def sample(self, state, prev_states, prev_actions, return_distribution=False, random_base=False):
+
+        if self.action_lookback == 0:
+            print("Don't run this without action lookback")
+            return 0
+        # Generate our prior
+        mean, log_std = self.forward_phi(prev_actions)
+        sigma, delta = self.forward_theta(state, mean) # <- What do we do with log_std?
+
+        mean_adj = sigma * mean + (1-sigma) * delta
+        log_std_adj = log_std # <- How do we adjust standard deviation?
+        # Sample from the base distribution first.
+        std = log_std_adj.exp()
+        base_dist = Normal(mean_adj, std)
+        action = base_dist.rsample()
+
+        # Base distribution
+        log_prob = base_dist.log_prob(action)
+
+        # Tanh the action
+        tanh_action = torch.tanh(action)
+
+        # Enforcing Action Bound
+        log_prob -= torch.log(self.action_scale * (1 - tanh_action.pow(2)) + epsilon)
+        log_prob = log_prob.sum(1, keepdim=True)
+
+        # We should subtract out the log_prob of the prior, but im not sure exactly how
+
+        mean_ret = torch.tanh(mean_adj) * self.action_scale + self.action_bias
+        action_ret = tanh_action * self.action_scale + self.action_bias
+
+        if return_distribution:
+            return action_ret, log_prob, mean_ret, mean, log_std, sigma, delta
+        else:
+            return action_ret, log_prob, mean_ret
 
     def to(self, device):
         self.action_scale = self.action_scale.to(device)
         self.action_bias = self.action_bias.to(device)
-        return super(GaussianPolicy, self).to(device)
+        return super(GaussianPolicy2, self).to(device)

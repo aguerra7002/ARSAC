@@ -114,8 +114,8 @@ def run_eval_episode(exp_id, title, plot_agent=False, eval=True, actor_filename=
     with imageio.get_writer('visual/' + title + '.gif', mode='I') as writer:
 
         num_steps = 1000
-        img = env.env.physics.render(camera_id=0, width=640, height=480)
-        writer.append_data(img)
+        #img = env.env.physics.render(camera_id=0, width=640, height=480)
+        #writer.append_data(img)
 
         actions = np.zeros((action_space_size, num_steps))
         means = np.zeros((action_space_size, num_steps))
@@ -135,12 +135,12 @@ def run_eval_episode(exp_id, title, plot_agent=False, eval=True, actor_filename=
             tmp_st, reward, done, _ = env.step(action)  # Step
 
             # Determines whether or not to plot the agent moving
-            img = env.env.physics.render(camera_id=0, width=640, height=480)
-            if plot_agent:
-                plt.imshow(img)
-                plt.savefig("visual/jpgs/" + title.replace(" ", "_") + "_" + str(step) + ".jpg")
-                plt.savefig("visual/pdfs/" + title.replace(" ", "_") + "_" + str(step) + ".pdf")
-            writer.append_data(img)
+            # img = env.env.physics.render(camera_id=0, width=640, height=480)
+            # if plot_agent:
+            #     plt.imshow(img)
+            #     plt.savefig("visual/jpgs/" + title.replace(" ", "_") + "_" + str(step) + ".jpg")
+            #     plt.savefig("visual/pdfs/" + title.replace(" ", "_") + "_" + str(step) + ".pdf")
+            # writer.append_data(img)
 
             actions[:, step] = action
             means[:, step] = mean
@@ -345,18 +345,28 @@ cheetah_run_base_dict5 = {
 }
 
 walker_rbo_increase_dict = {
-    "ARSAC": ["f9279c0fd1ac4cc9a400ce5ed2b0fdba"]
+    "ARSAC": ["1ce5cfcacd274f5cbc066c6d0e0073db"]
+}
+
+quadruped_rbo_increase_dict = {
+    "ARSAC": ["614c7e95e22c4d4bab5c9b1b39cae13c"]
+}
+
+halfcheetah_gym_dict = {
+    "ARSAC": ["0aa921b90c614166818472adc025b451"]
 }
 
 to_plot_dict_1x32 = {
-    "Walker Walk AutoEnt 1x32HS": walker_walk_base_dict5,
+    #"Walker Walk AutoEnt 1x32HS": walker_walk_base_dict5,
     # "Walker Run AutoEnt 1x32 HS": walker_run_base_dict5,
     # "Hopper Stand AutoEnt 1x32 HS": hopper_stand_base_dict5,
     # "Hopper Hop AutoEnt 1x32 HS": hopper_hop_base_dict5,
     # "Quadruped Walk AutoEnt 1x32 HS": quadruped_walk_base_dict5,
     # "Quadruped Run AutoEnt 1x32 HS": quadruped_run_base_dict5,
     # "Cheetah Run AutoEnt 1x32 HS": cheetah_run_base_dict5,
-    # "Walker Run RBO AutoEnt 1x32 HS": walker_rbo_increase_dict
+    #"Walker Walk RBO AutoEnt 1x32 HS": walker_rbo_increase_dict,
+    #"Quadruped Walk RBO AutoEnt 1x32 HS": quadruped_rbo_increase_dict
+    "Gym HalfCheetah 1x32 HS": halfcheetah_gym_dict
 }
 
 to_plot_dict_2x256 = {
@@ -377,7 +387,7 @@ if __name__ == "__main__":
         os.chdir(setup_directory(dir_name))
 
         arsac_exp_id = to_plot_dict_1x32[key]["ARSAC"][0]
-        actions, means, stds, shifts, scales, rewards, log_probs = run_eval_episode(arsac_exp_id, key, override_task="run")
+        actions, means, stds, shifts, scales, rewards, log_probs = run_eval_episode(arsac_exp_id, key, actor_filename="actor.model", override_task=None)
 
         #sac_exp_id = to_plot_dict_1x32[key]["SAC"][0]
         #actions_sac, means_sac, stds_sac, _, _, rewards_sac, log_probs_sac = run_eval_episode(sac_exp_id, key, eval=False)
