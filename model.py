@@ -348,15 +348,17 @@ Here is the experimental class for using previous actions to estimate a prior on
 class GaussianPolicy2(nn.Module):
 
     def __init__(self, num_inputs, num_actions, hidden_dim, action_space=None, action_lookback=0, hidden_dim_base=256):
-        super(GaussianPolicy, self).__init__()
+        super(GaussianPolicy2, self).__init__()
         # Specifying the Theta Network (will map states to some latent space equal in dimension to action space)
         self.hidden_dim_base = hidden_dim_base
         # This will take in the state along with the action prior
-        self.linear_theta_1 = nn.Linear(num_inputs + num_actions, hidden_dim_base)
+        self.linear_theta_1 = nn.Linear(num_inputs + 2 * num_actions, hidden_dim_base)
         if hidden_dim_base == 256:
             self.linear_theta_2 = nn.Linear(hidden_dim_base, hidden_dim_base)
-        self.mean_linear_theta = nn.Linear(hidden_dim_base, num_actions)
-        self.log_std_linear_theta = nn.Linear(hidden_dim_base, num_actions)
+        self.delta_mean_linear_theta = nn.Linear(hidden_dim_base, num_actions)
+        self.sigma_mean_linear_theta = nn.Linear(hidden_dim_base, num_actions)
+        self.delta_std_linear_theta = nn.Linear(hidden_dim_base, num_actions)
+        self.sigma_std_linear_theta = nn.Linear(hidden_dim_base, num_actions)
 
         self.state_space_size = num_inputs
         self.action_space_size = num_actions
@@ -367,10 +369,19 @@ class GaussianPolicy2(nn.Module):
             self.linear_phi_1 = nn.Linear(num_actions * action_lookback, hidden_dim)
             self.linear_phi_2 = nn.Linear(hidden_dim, hidden_dim)
 
-            self.log_scale_linear_phi = nn.Linear(hidden_dim, num_actions)
-            self.shift_linear_phi = nn.Linear(hidden_dim, num_actions)
+            self.log_std_linear_phi = nn.Linear(hidden_dim, num_actions)
+            self.mean_linear_phi = nn.Linear(hidden_dim, num_actions)
 
         self.apply(weights_init_)
+        # Will make the initial adjustment close to 0 (to avoid large KLs)
+        nn.init.constant_(self.delta_mean_linear_theta.weight, 0)
+        nn.init.constant_(self.delta_std_linear_theta.weight, 0)
+        nn.init.constant_(self.delta_mean_linear_theta.bias, 0)
+        nn.init.constant_(self.delta_std_linear_theta.bias, 0)
+        nn.init.constant_(self.sigma_mean_linear_theta.weight, 0)
+        nn.init.constant_(self.sigma_std_linear_theta.weight, 0)
+        nn.init.constant_(self.sigma_mean_linear_theta.bias, -5)
+        nn.init.constant_(self.sigma_std_linear_theta.bias, -5)
 
         # action rescaling
         if action_space is None:
@@ -394,10 +405,16 @@ class GaussianPolicy2(nn.Module):
             for name, param in self.linear_theta_1.named_parameters():
                 if 'weight' in name:
                     reg_loss += torch.norm(param, p=norm_type)
-            for name, param in self.mean_linear_theta.named_parameters():
+            for name, param in self.delta_mean_linear_theta.named_parameters():
                 if 'weight' in name:
                     reg_loss += torch.norm(param, p=norm_type)
-            for name, param in self.log_std_linear_theta.named_parameters():
+            for name, param in self.sigma_mean_linear_theta.named_parameters():
+                if 'weight' in name:
+                    reg_loss += torch.norm(param, p=norm_type)
+            for name, param in self.delta_std_linear_theta.named_parameters():
+                if 'weight' in name:
+                    reg_loss += torch.norm(param, p=norm_type)
+            for name, param in self.sigma_std_linear_theta.named_parameters():
                 if 'weight' in name:
                     reg_loss += torch.norm(param, p=norm_type)
             if self.hidden_dim_base == 256:
@@ -406,22 +423,26 @@ class GaussianPolicy2(nn.Module):
                         reg_loss += torch.norm(param, p=norm_type)
         return reg_loss * lambda_reg
 
-    def forward_theta(self, state, prior):
+    def forward_theta(self, state, prior_mean, prior_log_std):
 
-        inp = torch.cat((state, prior), 1)
+        inp = torch.cat((state, prior_mean, prior_log_std), 1)
 
         x = F.relu(self.linear_theta_1(inp))
         if self.hidden_dim_base == 256:
             x = F.relu(self.linear_theta_2(x))
-        delta = self.mean_linear_theta(x)
-        sigma = self.log_std_linear_theta(x)
+        delta_mean = self.delta_mean_linear_theta(x)
+        sigma_mean = self.sigma_mean_linear_theta(x)
+        delta_std = self.delta_std_linear_theta(x)
+        sigma_std = self.sigma_std_linear_theta(x)
+
         # Soft learning:
         MAX = 1
         MIN = 0
-        sigma = MAX - F.softplus(MAX - sigma)
-        sigma = MIN + F.softplus(sigma - MIN)
-
-        return delta, sigma
+        sigma_mean = MAX - F.softplus(MAX - sigma_mean)
+        sigma_mean = MIN + F.softplus(sigma_mean - MIN)
+        sigma_std = MAX - F.softplus(MAX - sigma_std)
+        sigma_std = MIN - F.softplus(sigma_std - MIN)
+        return delta_mean, sigma_mean, delta_std, sigma_std
 
     def forward_phi(self, prev_actions):
 
@@ -429,8 +450,8 @@ class GaussianPolicy2(nn.Module):
         x = F.relu(self.linear_phi_1(inp))
         x = F.relu(self.linear_phi_2(x))
 
-        mean = self.shift_linear_phi(x)
-        log_std = self.log_scale_linear_phi(x)
+        mean = self.mean_linear_phi(x)
+        log_std = self.log_std_linear_phi(x)
         # Soft learning
         log_std = LOG_SIG_MAX - F.softplus(LOG_SIG_MAX - log_std)
         log_std = LOG_SIG_MIN + F.softplus(log_std - LOG_SIG_MIN)
@@ -444,34 +465,36 @@ class GaussianPolicy2(nn.Module):
             return 0
         # Generate our prior
         mean, log_std = self.forward_phi(prev_actions)
-        sigma, delta = self.forward_theta(state, mean) # <- What do we do with log_std?
+        # Detach the mean/std so we don't
+        delta_mean, sigma_mean, delta_std, sigma_std = self.forward_theta(state, mean.detach(), log_std.detach())
 
-        mean_adj = sigma * mean + (1-sigma) * delta
-        log_std_adj = log_std # <- How do we adjust standard deviation?
+        mean_adj = (1-sigma_mean) * mean.detach() + sigma_mean * delta_mean
+        log_std_adj = (1-sigma_std) * log_std.detach() + sigma_std * delta_std
         # Sample from the base distribution first.
-        std = log_std_adj.exp()
-        base_dist = Normal(mean_adj, std)
+        std_adj = log_std_adj.exp()
+        prior_dist = Normal(mean, log_std.exp())
+        base_dist = Normal(mean_adj, std_adj)
         action = base_dist.rsample()
-
         # Base distribution
-        log_prob = base_dist.log_prob(action)
-
+        log_prob_base = base_dist.log_prob(action)
+        log_prob_prior = prior_dist.log_prob(action)
         # Tanh the action
         tanh_action = torch.tanh(action)
 
         # Enforcing Action Bound
-        log_prob -= torch.log(self.action_scale * (1 - tanh_action.pow(2)) + epsilon)
-        log_prob = log_prob.sum(1, keepdim=True)
-
-        # We should subtract out the log_prob of the prior, but im not sure exactly how
+        log_prob_base -= torch.log(self.action_scale * (1 - tanh_action.pow(2)) + epsilon)
+        log_prob_base = log_prob_base.sum(1, keepdim=True)
+        log_prob_prior -= torch.log(self.action_scale * (1 - tanh_action.pow(2)) + epsilon)
+        log_prob_prior = log_prob_prior.sum(1, keepdim=True)
+        kl_div = log_prob_base - log_prob_prior
 
         mean_ret = torch.tanh(mean_adj) * self.action_scale + self.action_bias
         action_ret = tanh_action * self.action_scale + self.action_bias
 
         if return_distribution:
-            return action_ret, log_prob, mean_ret, mean, log_std, sigma, delta
+            return action_ret, kl_div, mean_ret, mean, log_std.exp(), sigma_mean, sigma_std # TODO: Add delta's?
         else:
-            return action_ret, log_prob, mean_ret
+            return action_ret, kl_div, mean_ret
 
     def to(self, device):
         self.action_scale = self.action_scale.to(device)

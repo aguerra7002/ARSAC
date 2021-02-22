@@ -251,7 +251,12 @@ walker_transfer_dict3 = {"SAC" : ["3193d027636e4593a8ba71a84ee21638",
                                                    '3097ffdbbdc4439a8ee9b420ecd50ab2',
                                                    'a35e002acd4a4bf6aa162cdc594b8520',
                                                    '1cd85c5aa2114ecd8c6380e1d7e198be',
-                                                   '0c4129b85af347fda4202feb7ec796aa']}
+                                                   '0c4129b85af347fda4202feb7ec796aa'],
+                 "ARSAC w/ compressed flow transfer": ['23c189c7c934445d9ce9e21306d5da7d',
+                                                       'e5ad1262865d4f48940345afe0d54620',
+                                                       'd3bce5e568b04645ad5fda92ff5d99d0',
+                                                       '0e64b1111e8f41a5a70d6048104026d2',
+                                                       '36302e103e63407ab98653a29382306e']}
 
 quadruped_transfer_dict3 = {"SAC" : ["0eeb188dba754404a41ed786a52d5ac8",
                                     "55bb145d0b4b4921a60a154504160e0b",
@@ -277,7 +282,13 @@ quadruped_transfer_dict3 = {"SAC" : ["0eeb188dba754404a41ed786a52d5ac8",
                                                    'd3bcf58af13746b2b345d44977c9cbc9',
                                                    'e909b4b55e3541a1a435502bd40f06af',
                                                    '2779549c387f4fc688b10fbfaf7edd30',
-                                                   '35c9d04f91ed47ca8b6d1d0b78245cb9']}
+                                                   '35c9d04f91ed47ca8b6d1d0b78245cb9'],
+
+                 "ARSAC w/ compressed flow transfer": ['cfa69aa2c6354e81b38bf9bb7271bcc8',
+                                                       'c8e085e2a66c4f9bbb7f095fcc56446c',
+                                                       '0a4ac904a700420581f39364e9cc4772',
+                                                       '4a6324cc4d004168b2eee5ebad2fa26b',
+                                                       '06f6649691df4c369e64edaf9da01ea1']}
 
 # DM Control Base Tests (Batch size 128, ARSAC-3, hidden dim 32)
 walker_walk_base_dict = {"SAC": ['5486ada760c640f7b5fbdd3680ce8258'],
@@ -469,7 +480,13 @@ humanoid_walk_base_dict4 = {"SAC": ['d2014eeb19034c1b89187ba315ed6851',
                                          'cf80e38223a74070a8d25784af6144a1',
                                          '74a0d413956e411484dd15529ebbed58',
                                          'ab715a319ad54c64a3cdcf1a338022f3',
-                                         '53c353ecb11e4fdb97ff87481c2bef90']}
+                                         '53c353ecb11e4fdb97ff87481c2bef90'],
+                            "ARSAC-5 (compressed flow)": ['5a9d3dee45f54ca1b91b5e8dc859ee0c',
+                                                          '5d3379b769a6438598d7d8f7fc187459',
+                                                          'c147220b46d345c5ab4c45c49c031a2d',
+                                                          'f5c3dcc3267c470fa33dbfb701187d79',
+                                                          '1ab427d1ca5e42479b34355266a87125']
+                            }
 
 humanoid_run_base_dict4 = {"SAC": ['d4f897346e714022bb2e7cc3e1b795b7',
                                    'd4d0f5333ec84290bdc3342885be90f6',
@@ -490,7 +507,12 @@ humanoid_run_base_dict4 = {"SAC": ['d4f897346e714022bb2e7cc3e1b795b7',
                                          'fd1f00c497834716a53c5bd76dea70cb',
                                          '4ff0e447a50842e1b835a01aa74d20d9',
                                          '71db7e4445464aad8f36dbe9c91ff07a',
-                                         '04a5ad091ac54904bbd6139f3ca9b701']
+                                         '04a5ad091ac54904bbd6139f3ca9b701'],
+                            "ARSAC-5 (compressed flow)": ['dec6a0165e2249c78e36f4de79d05202',
+                                                          'ace3e9c9c2124e5a970109f3275af128',
+                                                          'cd960ea17d194892adde867ccf8c28c3',
+                                                          '1869f63baba243ac8c97b82c51ce8542',
+                                                          '95885e1284bf453d8c8af7efd8780e3b']
                            }
 
 # Base Tests With 1x32 HS AutoEntropy Tuning, BS 256
@@ -641,7 +663,7 @@ to_plot_dict4 = {
     # "Cheetah Run AutoEnt 256BS 2x256HS" : cheetah_run_base_dict4,
     # "Swimmer Swimmer6 AutoEnt 256BS 2x256HS" : swimmer_swimmer6_base_dict4,
     # "Humanoid Stand Autoent 256BS 2x256HS" : humanoid_stand_base_dict4,
-    # "Humanoid Walk AutoEnt256BS 2x256HS" : humanoid_walk_base_dict4,
+    "Humanoid Walk AutoEnt256BS 2x256HS" : humanoid_walk_base_dict4,
     "Humanoid Run AutoEnt 256BS 2x256HS" : humanoid_run_base_dict4
 }
 
@@ -659,8 +681,8 @@ if __name__ == "__main__":
     # Specify the folder we want to save the visualizations to
     base_rew_dir = "reward_plots_new/"
     base_logscale_dir = "log_scale_plots_new/"
-    for env in to_plot_transfer_dict3.keys():
-        env_exp_dict = to_plot_transfer_dict3[env]
+    for env in to_plot_dict4.keys():
+        env_exp_dict = to_plot_dict4[env]
         print("Visualizing ", env)
         plot_rewards(env_exp_dict, base_rew_dir, REWARD_KEY)
         plot_rewards(env_exp_dict, base_logscale_dir, LOG_SCALE_KEY)

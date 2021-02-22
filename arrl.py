@@ -61,7 +61,7 @@ class ARRL(object):
         if self.policy_type == "Gaussian":
             # Target Entropy = −dim(A) (e.g. , -6 for HalfCheetah-v2) as given in the paper
             if self.automatic_entropy_tuning:
-                self.target_entropy = -torch.prod(torch.Tensor(action_space.shape).to(self.device)).item()
+                self.target_entropy = torch.prod(torch.Tensor(action_space.shape).to(self.device)).item()
                 self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
                 self.alpha_optim = Adam([self.log_alpha], lr=args.lr)
 
@@ -71,10 +71,23 @@ class ARRL(object):
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
         elif self.policy_type == "Gaussian2":
-            # TODO: What other stuff should be here?
+            if self.automatic_entropy_tuning:
+                self.target_entropy = torch.Tensor((args.kl_constraint,)).item()
+                self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
+                self.alpha_optim = Adam([self.log_alpha], lr=args.lr)
+
             self.policy = GaussianPolicy2(num_inputs, action_space.shape[0], args.hidden_size, action_space,
                                          self.action_lookback_actor, args.hidden_dim_base).to(self.device)
-            self.policy_optim = Adam(self.policy.parameters(), lr = args.lr)
+            # Make sure to be able to specify a different learning rate for the autoregressive network
+            all_params = set(self.policy.parameters())
+            ar_params = []
+            for name, p in self.policy.named_parameters():
+                if "phi" in name:
+                    ar_params.append(p)
+            base_params = list(all_params - set(ar_params))
+            self.policy_optim = Adam([{"params": base_params},
+                                      {"params": ar_params, "lr": args.lr_ar}],
+                                     lr = args.lr)
         else:
             print("Shouldn't be here")
             exit(0)
@@ -188,7 +201,7 @@ class ARRL(object):
         qf_loss.backward()
         self.critic_optim.step()
 
-        pi, log_pi, _, policy_mean, policy_std, _, _ = \
+        pi, log_pi, _, policy_mean, policy_std, sigma_mean, sigma_std = \
             self.policy.sample(state_batch, prev_state_batch, prev_action_batch, return_distribution=True)
 
         qf1_pi, qf2_pi = self.critic(state_batch, pi, prev_state_batch, prev_action_batch)
@@ -196,13 +209,19 @@ class ARRL(object):
 
         policy_loss = ((self.alpha * log_pi) - min_qf_pi).mean()  # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
         # Add in regularization to policy here.
-        policy_loss += self.policy.get_reg_loss(lambda_reg=self.lambda_reg, use_l2_reg=self.use_l2_reg)
+        #policy_loss += self.policy.get_reg_loss(lambda_reg=self.lambda_reg, use_l2_reg=self.use_l2_reg)
 
         # Add loss if we choose to restrict the output of the network
-        if restrict_base_output > 0.0:
+        if restrict_base_output > 0.0 and self.policy_type == "Gaussian":
             norm_type = 'fro' if self.use_l2_reg else 'nuc'
             norms = torch.norm(policy_mean, dim=1, p=norm_type).mean() + torch.norm(policy_std.log(), dim=1, p=norm_type).mean()
             policy_loss += norms * restrict_base_output
+
+        # TODO: Do we add this in to encourage more use of the autoregressive prior?
+        # if restrict_base_output > 0.0 and self.policy_type == "Gaussian2":
+        #     norm_type = 'fro' if self.use_l2_reg else 'nuc'
+        #     norms = torch.norm(sigma_mean, dim=1, p=norm_type).mean() + torch.norm(sigma_std, dim=1, p=norm_type).mean()
+        #     policy_loss += norms * restrict_base_output
 
         # Finally we update the policy
         self.policy_optim.zero_grad()
@@ -212,19 +231,18 @@ class ARRL(object):
         if PROFILING:
             print("\tCritic Loss:", time.time() - prev_time)
             prev_time = time.time()
-
         if self.automatic_entropy_tuning:
-            alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+            alpha_loss = (self.log_alpha * (log_pi - self.target_entropy).detach()).mean()
 
             self.alpha_optim.zero_grad()
             alpha_loss.backward()
             self.alpha_optim.step()
 
             self.alpha = self.log_alpha.exp()
-            alpha_tlogs = self.alpha.clone()  # For TensorboardX logs
+            alpha_tlogs = self.alpha.clone()
         else:
             alpha_loss = torch.tensor(0.).to(self.device)
-            alpha_tlogs = torch.tensor(self.alpha)  # For TensorboardX logs
+            alpha_tlogs = torch.tensor(self.alpha)
 
         if updates % self.target_update_interval == 0:
             soft_update(self.critic_target, self.critic, self.tau)
@@ -341,14 +359,14 @@ class ARRL(object):
         qf_loss.backward()
         self.critic_optim.step()
 
-        pi, log_pi, _, policy_mean, policy_std, _, _ = \
+        pi, kl_div, _, policy_mean, policy_std, _, _ = \
             self.policy.sample(state_batch, prev_state_batch, prev_action_batch, return_distribution=True)
 
         qf1_pi, qf2_pi = self.critic(state_batch, pi, prev_state_batch, prev_action_batch)
         min_qf_pi = torch.min(qf1_pi, qf2_pi)
 
-
-        policy_loss = ((self.alpha * log_pi) - min_qf_pi).mean()  # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
+        prior_loss = kl_div
+        policy_loss = (self.alpha * prior_loss - min_qf_pi).mean()  # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
 
         # Add in regularization to policy here.
         policy_loss += self.policy.get_reg_loss(lambda_reg=self.lambda_reg, use_l2_reg=self.use_l2_reg)
@@ -369,7 +387,7 @@ class ARRL(object):
             prev_time = time.time()
 
         if self.automatic_entropy_tuning:
-            alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+            alpha_loss = -(self.log_alpha * (kl_div - self.target_entropy).detach()).mean()
 
             self.alpha_optim.zero_grad()
             alpha_loss.backward()

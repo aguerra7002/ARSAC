@@ -21,7 +21,7 @@ project_name = 'arsac-test'
 comet_api = API(api_key=api_key)
 
 # PUT THE NAME OF THE FILE WE WANT TO SAVE HERE
-actor_filename = "actor.model"
+actor_filename = "actor_eval_205.model"
 critic_filename = "critic.model"
 
 parser = argparse.ArgumentParser(description='PyTorch AutoRegressiveFlows-RL Args')

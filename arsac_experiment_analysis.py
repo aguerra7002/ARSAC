@@ -114,8 +114,8 @@ def run_eval_episode(exp_id, title, plot_agent=False, eval=True, actor_filename=
     with imageio.get_writer('visual/' + title + '.gif', mode='I') as writer:
 
         num_steps = 1000
-        #img = env.env.physics.render(camera_id=0, width=640, height=480)
-        #writer.append_data(img)
+        img = env.env.physics.render(camera_id=0, width=640, height=480)
+        writer.append_data(img)
 
         actions = np.zeros((action_space_size, num_steps))
         means = np.zeros((action_space_size, num_steps))
@@ -135,12 +135,12 @@ def run_eval_episode(exp_id, title, plot_agent=False, eval=True, actor_filename=
             tmp_st, reward, done, _ = env.step(action)  # Step
 
             # Determines whether or not to plot the agent moving
-            # img = env.env.physics.render(camera_id=0, width=640, height=480)
-            # if plot_agent:
-            #     plt.imshow(img)
-            #     plt.savefig("visual/jpgs/" + title.replace(" ", "_") + "_" + str(step) + ".jpg")
-            #     plt.savefig("visual/pdfs/" + title.replace(" ", "_") + "_" + str(step) + ".pdf")
-            # writer.append_data(img)
+            img = env.env.physics.render(camera_id=0, width=640, height=480)
+            if plot_agent:
+                plt.imshow(img)
+                plt.savefig("visual/jpgs/" + title.replace(" ", "_") + "_" + str(step) + ".jpg")
+                plt.savefig("visual/pdfs/" + title.replace(" ", "_") + "_" + str(step) + ".pdf")
+            writer.append_data(img)
 
             actions[:, step] = action
             means[:, step] = mean
@@ -313,6 +313,10 @@ cheetah_run_base_dict4 = {
     "SAC": ['d4f8852ef3724b1b922a470f1faecc8e'],
     "ARSAC": ['d249049426d04c44bbeb1a817e20369c']
 }
+humanoid_walk_base_dict4 = {
+    #"SAC": ["12bcc10a1a7642248a876e179eb4cd26"],
+    "ARSAC": ["12bcc10a1a7642248a876e179eb4cd26"]
+}
 
 # Base Tests With 1x32 HS AutoEntropy Tuning, BS 256
 walker_walk_base_dict5 = {
@@ -345,11 +349,21 @@ cheetah_run_base_dict5 = {
 }
 
 walker_rbo_increase_dict = {
-    "ARSAC": ["1ce5cfcacd274f5cbc066c6d0e0073db"]
+    "ARSAC": ["1ce5cfcacd274f5cbc066c6d0e0073db"] # use "actor_eval_205.model"
 }
 
 quadruped_rbo_increase_dict = {
-    "ARSAC": ["614c7e95e22c4d4bab5c9b1b39cae13c"]
+    "ARSAC": ["614c7e95e22c4d4bab5c9b1b39cae13c"] # use "actor_eval_205.model"
+}
+
+# Compressing a stand policy for use for humanoid walk
+humanoid_stand_rbo_increase_dict = {
+    "ARSAC": ["d490b59aeffe44f9ac9435e95f763021"] # use "actor_eval_125.model"
+}
+
+# Compressing a walk policy for use for humanoid run
+humanoid_walk_rbo_increase_dict = {
+    "ARSAC": ["d201596ba5ff4ddba482514e2888ed15"] # use "actor_eval_190.model"
 }
 
 halfcheetah_gym_dict = {
@@ -364,30 +378,33 @@ to_plot_dict_1x32 = {
     # "Quadruped Walk AutoEnt 1x32 HS": quadruped_walk_base_dict5,
     # "Quadruped Run AutoEnt 1x32 HS": quadruped_run_base_dict5,
     # "Cheetah Run AutoEnt 1x32 HS": cheetah_run_base_dict5,
-    #"Walker Walk RBO AutoEnt 1x32 HS": walker_rbo_increase_dict,
-    #"Quadruped Walk RBO AutoEnt 1x32 HS": quadruped_rbo_increase_dict
-    "Gym HalfCheetah 1x32 HS": halfcheetah_gym_dict
+    # "Walker Walk RBO AutoEnt 1x32 HS": walker_rbo_increase_dict,
+    # "Quadruped Walk RBO AutoEnt 1x32 HS": quadruped_rbo_increase_dict
+    # "Gym HalfCheetah 1x32 HS": halfcheetah_gym_dict
 }
 
 to_plot_dict_2x256 = {
-    "Walker Walk AutoEnt 2x256HS": walker_walk_base_dict4,
-    "Walker Run AutoEnt 2x256HS": walker_run_base_dict4,
-    "Hopper Stand AutoEnt 2x256HS": hopper_stand_base_dict4,
-    "Hopper Hop AutoEnt 2x256HS": hopper_hop_base_dict4,
-    "Quadruped Walk AutoEnt 2x256HS": quadruped_walk_base_dict4,
-    "Quadruped Run AutoEnt 2x256HS": quadruped_run_base_dict4,
-    "Cheetah Run AutoEnt 2x256HS": cheetah_run_base_dict4
+    # "Walker Walk AutoEnt 2x256HS": walker_walk_base_dict4,
+    # "Walker Run AutoEnt 2x256HS": walker_run_base_dict4,
+    # "Hopper Stand AutoEnt 2x256HS": hopper_stand_base_dict4,
+    # "Hopper Hop AutoEnt 2x256HS": hopper_hop_base_dict4,
+    # "Quadruped Walk AutoEnt 2x256HS": quadruped_walk_base_dict4,
+    # "Quadruped Run AutoEnt 2x256HS": quadruped_run_base_dict4,
+    # "Cheetah Run AutoEnt 2x256HS": cheetah_run_base_dict4,
+    # "Humanoid Walk AutoEnt 2x256HS": humanoid_walk_base_dict4
+    # "Humanoid Stand RBO AutoEnt 2x256HS": humanoid_stand_rbo_increase_dict,
+    "Humanoid Walk RBO AutoEnt 2x256HS": humanoid_walk_rbo_increase_dict
 }
 
 if __name__ == "__main__":
     # Walker Walk (HD 1x32, BS 256, No AutoEnt Tuning)
-    for key in to_plot_dict_1x32:
+    for key in to_plot_dict_2x256:
         dir_name = key
         # Will create all the necessary directories and go into the proper directory for plotting
         os.chdir(setup_directory(dir_name))
 
-        arsac_exp_id = to_plot_dict_1x32[key]["ARSAC"][0]
-        actions, means, stds, shifts, scales, rewards, log_probs = run_eval_episode(arsac_exp_id, key, actor_filename="actor.model", override_task=None)
+        arsac_exp_id = to_plot_dict_2x256[key]["ARSAC"][0]
+        actions, means, stds, shifts, scales, rewards, log_probs = run_eval_episode(arsac_exp_id, key, actor_filename="actor_eval_190.model", override_task="run")
 
         #sac_exp_id = to_plot_dict_1x32[key]["SAC"][0]
         #actions_sac, means_sac, stds_sac, _, _, rewards_sac, log_probs_sac = run_eval_episode(sac_exp_id, key, eval=False)

@@ -13,25 +13,27 @@ from env_wrapper import EnvWrapper
 
 parser = argparse.ArgumentParser(description='PyTorch AutoRegressiveFlows-RL Args')
 # Once we get Mujoco then we will use this one
-parser.add_argument('--env-name', default="HalfCheetah-v2",
+parser.add_argument('--env-name', default="walker",
                     help='Mujoco Gym environment (default: HalfCheetah-v2)')
-parser.add_argument('--task-name', default=None,
+parser.add_argument('--task-name', default="walk",
                     help='Task name to use in the Deepmind control suite. Leave Blank to use Gym environments')
-parser.add_argument('--policy', default="Gaussian",
-                    help='Policy Type: Gaussian | Deterministic (default: Gaussian)')
+parser.add_argument('--policy', default="Gaussian2",
+                    help='Policy Type: Gaussian | Gaussian2 (default: Gaussian)')
 parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
                     help='discount factor for reward (default: 0.99)')
 parser.add_argument('--tau', type=float, default=0.005, metavar='G',
                     help='target smoothing coefficient(τ) (default: 0.005)')
 parser.add_argument('--lr', type=float, default=0.0003, metavar='G',
                     help='learning rate (default: 0.0003)')
+parser.add_argument('--lr_ar', type=float, default=0.0003, metavar='G',
+                    help='learning rate for autoregressive prior policy (used when policy type is Gaussian2)')
 parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
                     help='Temperature parameter α determines the relative importance of the entropy\
                             term against the reward (default: 0.2)')
+parser.add_argument('--kl_constraint', type=float, default=0.0002, metavar='G',
+                    help='encourages the optimizer to have a KL near this value.')
 parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, metavar='G',
                     help='Automatically adjust α (default: False)')
-parser.add_argument('--automatic_base_reduction', type=bool, default=False, metavar='G',
-                    help='Automatically reduce the base output over time, useful for compressing policies into AR comp')
 ################ Specific to ARSAC ####################
 parser.add_argument('--use_gated_transform', type=bool, default=False, metavar='G',
                     help='Use Inverse Autoregressive Flow')
@@ -158,6 +160,7 @@ with experiment.train():
         critic_1_losses = []
         critic_2_losses = []
         policy_losses = []
+        ent_losses = []
         done = False
         state = env.get_current_state(temp_state=None, position_only=args.position_only)
 
@@ -211,7 +214,7 @@ with experiment.train():
                     critic_1_losses.append(critic_1_loss)
                     critic_2_losses.append(critic_2_loss)
                     policy_losses.append(policy_loss)
-
+                    ent_losses.append(ent_loss)
                     updates += 1
 
             if PROFILING:
@@ -365,8 +368,14 @@ with experiment.train():
         experiment.log_metric("Episode_Reward", episode_reward, step=i_episode)
         std_log= np.mean(np.log(np.array(bstds)))
         experiment.log_metric("Base log stddev", std_log, step=i_episode)
-        scale_log = np.mean(np.log(np.array(ascales)))
+        if args.policy == "Gaussian":
+            ascales = np.log(np.array(ascales))
+        else:
+            ascales = np.array(ascales)
+        scale_log = np.mean(ascales)
         experiment.log_metric("AR log scale", scale_log, step=i_episode)
+        mean_ent_loss = np.mean(np.array(ent_losses))
+        experiment.log_metric("Mean Ent Loss", mean_ent_loss, step=i_episode)
         mean_critic_1_loss = np.mean(np.array(critic_1_losses))
         experiment.log_metric("Mean Critic 1 loss", mean_critic_1_loss, step=i_episode)
         mean_critic_2_loss = np.mean(np.array(critic_2_losses))
