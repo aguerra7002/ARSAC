@@ -56,7 +56,7 @@ def plot_log_scale(experiment_ids, title, save_dir):
     #axs.legend(axs.get_lines(), experiment_dict.keys(), prop={'size': 10}, title="Lookback")
     fig.savefig(save_dir + title.replace(" ", "_") + "_log_scale.pdf")
 
-def run_eval_episode(exp_id, title, plot_agent=False, eval=True, actor_filename='actor.model', override_task=None):
+def run_eval_episode(exp_id, title, plot_agent=False, eval=True, actor_filename='actor.model', override_task=None, prior_only=False):
     print("Running eval episode for " + exp_id + " (" + title + ")")
     experiment = comet_api.get_experiment(project_name=project_name,
                                           workspace=workspace,
@@ -132,7 +132,12 @@ def run_eval_episode(exp_id, title, plot_agent=False, eval=True, actor_filename=
                                                                   return_distribution=True,
                                                                   return_prob = True)
             # Take a step in the environment. Note, we get the next state in the following line in case we only want pos
-            tmp_st, reward, done, _ = env.step(action)  # Step
+            if prior_only:
+                # Here, when using Gaussian2 policy, mean represents the prior mean which is solely a function of previous actions
+                act_prior = np.tanh(mean)
+                tmp_st, reward, done, _ = env.step(mean)
+            else:
+                tmp_st, reward, done, _ = env.step(action)  # Step
 
             # Determines whether or not to plot the agent moving
             img = env.env.physics.render(camera_id=0, width=640, height=480)
@@ -282,6 +287,7 @@ def setup_directory(dir):
         os.makedirs(visual_loc)
         os.makedirs(os.path.join(visual_loc, "jpgs"))
         os.makedirs(os.path.join(visual_loc, "pdfs"))
+    print(loc)
     return loc
 
 # Base Tests with 2x256 HS AutoEntropy Tuning, BS 256
@@ -366,18 +372,22 @@ humanoid_walk_rbo_increase_dict = {
     "ARSAC": ["d201596ba5ff4ddba482514e2888ed15"] # use "actor_eval_190.model"
 }
 
+humanoid_run_base_dict4 = {
+    "ARSAC": ['9979998a4dd3405c8acd7b4ad900ccb4']
+}
+
 halfcheetah_gym_dict = {
     "ARSAC": ["0aa921b90c614166818472adc025b451"]
 }
 
 to_plot_dict_1x32 = {
     #"Walker Walk AutoEnt 1x32HS": walker_walk_base_dict5,
-    # "Walker Run AutoEnt 1x32 HS": walker_run_base_dict5,
+    "Walker Run AutoEnt 1x32 HS": walker_run_base_dict5,
     # "Hopper Stand AutoEnt 1x32 HS": hopper_stand_base_dict5,
     # "Hopper Hop AutoEnt 1x32 HS": hopper_hop_base_dict5,
     # "Quadruped Walk AutoEnt 1x32 HS": quadruped_walk_base_dict5,
     # "Quadruped Run AutoEnt 1x32 HS": quadruped_run_base_dict5,
-    # "Cheetah Run AutoEnt 1x32 HS": cheetah_run_base_dict5,
+    "Cheetah Run AutoEnt 1x32 HS": cheetah_run_base_dict5
     # "Walker Walk RBO AutoEnt 1x32 HS": walker_rbo_increase_dict,
     # "Quadruped Walk RBO AutoEnt 1x32 HS": quadruped_rbo_increase_dict
     # "Gym HalfCheetah 1x32 HS": halfcheetah_gym_dict
@@ -393,24 +403,25 @@ to_plot_dict_2x256 = {
     # "Cheetah Run AutoEnt 2x256HS": cheetah_run_base_dict4,
     # "Humanoid Walk AutoEnt 2x256HS": humanoid_walk_base_dict4
     # "Humanoid Stand RBO AutoEnt 2x256HS": humanoid_stand_rbo_increase_dict,
-    "Humanoid Walk RBO AutoEnt 2x256HS": humanoid_walk_rbo_increase_dict
+    #"Humanoid Walk RBO AutoEnt 2x256HS": humanoid_walk_rbo_increase_dict
+    "Humanoid Run AutoEnt 2x256HS": humanoid_run_base_dict4
 }
 
 if __name__ == "__main__":
-    # Walker Walk (HD 1x32, BS 256, No AutoEnt Tuning)
-    for key in to_plot_dict_2x256:
+
+    for key in to_plot_dict_1x32:
         dir_name = key
         # Will create all the necessary directories and go into the proper directory for plotting
         os.chdir(setup_directory(dir_name))
-
-        arsac_exp_id = to_plot_dict_2x256[key]["ARSAC"][0]
-        actions, means, stds, shifts, scales, rewards, log_probs = run_eval_episode(arsac_exp_id, key, actor_filename="actor_eval_190.model", override_task="run")
+        title = key + "eval250"
+        arsac_exp_id = to_plot_dict_1x32[key]["ARSAC"][0]
+        actions, means, stds, shifts, scales, rewards, log_probs = run_eval_episode(arsac_exp_id, title, actor_filename="actor_eval_250.model")
 
         #sac_exp_id = to_plot_dict_1x32[key]["SAC"][0]
         #actions_sac, means_sac, stds_sac, _, _, rewards_sac, log_probs_sac = run_eval_episode(sac_exp_id, key, eval=False)
         #print("ARSAC Log Prob", np.mean(log_probs), "SAC Log Prob", np.mean(log_probs_sac))
 
-        title = key
+
         print("Episode Reward", sum(rewards))
         plot_action(stds, means, shifts, scales, title)
         # amax = np.max(actions)

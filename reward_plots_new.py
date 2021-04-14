@@ -1,6 +1,7 @@
 from comet_ml.api import API
 import numpy as np
 from scipy.signal import savgol_filter
+from arsac_experiment_analysis import run_eval_episode, setup_directory
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import rc
@@ -9,6 +10,7 @@ matplotlib.style.use('seaborn')
 rc('font', family='serif')
 import seaborn as sns
 sns.set_palette('Paired')
+import os
 
 # comet
 api_key = 'tHDbEydFQGW7F1MWmIKlEvrly'
@@ -18,7 +20,7 @@ comet_api = API(api_key=api_key)
 
 # savgol filter
 SMOOTH = True
-WINDOW = 71
+WINDOW = 5
 POLY_DEG = 3
 
 REWARD_KEY = 'train_Avg. Episode_Reward'
@@ -88,7 +90,9 @@ def plot_rewards(env_exp_dict, save_folder, metric):
     if metric == REWARD_KEY:
         plt.ylim(ymax=1010, ymin=-10)
     for inference_type in env_exp_dict:
+
         returns_list = []
+        prior_rws = []
         for exp_key in env_exp_dict[inference_type]:
             if exp_key == '':
                 continue
@@ -100,6 +104,17 @@ def plot_rewards(env_exp_dict, save_folder, metric):
                 returns_list.append(returns)
             else:
                 print("Invalid Comet ML Experiment Key provided: " + exp_key)
+            # If using the G2 policy, then we want to see how good the prior network is on its own.
+            if inference_type == "G2 ARSAC":
+                os.chdir(setup_directory("reward_plots_new/"))
+                _, _, _, _, _, rewards, _ = run_eval_episode(exp_key, env, actor_filename="actor_eval_65.model", prior_only=True) # Change actor_eval
+                prior_rws.append(sum(rewards))
+                os.chdir("../../")
+
+        if inference_type == "G2 ARSAC":
+            avg_prior_rw = sum(prior_rws) / len(prior_rws)
+            prior_array = [avg_prior_rw] * mean.shape[0]
+            plt.plot(prior_array, '-.', color='black', label="AR Prior Only")
 
         if len(returns_list) > 1:
             mean, std = aggregate_returns(returns_list)
@@ -111,6 +126,7 @@ def plot_rewards(env_exp_dict, save_folder, metric):
         elif len(returns_list) == 1:
             print(len(returns_list))
             plt.plot(savgol_filter(returns_list[0], WINDOW, POLY_DEG), label=inference_type)
+
     plt.legend(fontsize=12)
     #plt.xlabel(r'Steps $\times 1,000$', fontsize=15)
 
@@ -485,7 +501,12 @@ humanoid_walk_base_dict4 = {"SAC": ['d2014eeb19034c1b89187ba315ed6851',
                                                           '5d3379b769a6438598d7d8f7fc187459',
                                                           'c147220b46d345c5ab4c45c49c031a2d',
                                                           'f5c3dcc3267c470fa33dbfb701187d79',
-                                                          '1ab427d1ca5e42479b34355266a87125']
+                                                          '1ab427d1ca5e42479b34355266a87125'],
+                            "SAC (transfer)": ['02d8820b44c34b959ad19c6ad3d6a6eb',
+                                               '3bde791d74ec4f51a89c29c046b53987',
+                                               '9979998a4dd3405c8acd7b4ad900ccb4',
+                                               '18f30884c1bd4c29bededd6a44835d3c',
+                                               '508447608ed64c4da3c9dc3c96bd31fc']
                             }
 
 humanoid_run_base_dict4 = {"SAC": ['d4f897346e714022bb2e7cc3e1b795b7',
@@ -512,7 +533,12 @@ humanoid_run_base_dict4 = {"SAC": ['d4f897346e714022bb2e7cc3e1b795b7',
                                                           'ace3e9c9c2124e5a970109f3275af128',
                                                           'cd960ea17d194892adde867ccf8c28c3',
                                                           '1869f63baba243ac8c97b82c51ce8542',
-                                                          '95885e1284bf453d8c8af7efd8780e3b']
+                                                          '95885e1284bf453d8c8af7efd8780e3b'],
+                            "SAC (transfer)": ['6981aa3211fd4c5cbfec9e96056f6640',
+                                               'e5313a0dc15549cd8503ced1ea66746a',
+                                               'bbaf3ae0c68a42b9905df1c537b07bfd',
+                                               '26f01494908144ffa3badc4a33c8d975',
+                                               '4adb957f941148e199b7f1e524d6f513']
                            }
 
 # Base Tests With 1x32 HS AutoEntropy Tuning, BS 256
@@ -607,6 +633,16 @@ cheetah_run_base_dict5 = {
               "2f23146b1baa45c8806a081cbfb9023e"]
 }
 
+# Experiments for our new formulation where the autoregressive component determines the prior.
+walker_walk_g2 = {
+    "G1 ARSAC": ["5691959d6b01421d8dc1b78aaa3937ff",
+                 "2d26d47b74554c8ca91c7302c616403b",
+                 "f439a152dc6d462596fababa20323359",
+                 "756d6844ce8347819f6f6849893c1825",
+                 "bfee66cd9d6d4a1baced9aecde015bd4"],
+    "G2 ARSAC": ["c07dbe5f34e84b898819ba6b27d225bd"]
+}
+
 # DM Control Pixel Tests
 walker_walk_pixel_dict = {"SAC": ['6392d6c1f77547429ab16c46d20f339c',
                                     '',
@@ -677,12 +713,17 @@ to_plot_dict5 = {
     "Cheetah Run AutoEnt 256BS 1x32 HS" : cheetah_run_base_dict5
 }
 
+to_plot_g1g2 = {
+    "Walker Walk G1 vs. G2 1x32 HS" : walker_walk_g2
+}
+
 if __name__ == "__main__":
     # Specify the folder we want to save the visualizations to
     base_rew_dir = "reward_plots_new/"
     base_logscale_dir = "log_scale_plots_new/"
-    for env in to_plot_dict4.keys():
-        env_exp_dict = to_plot_dict4[env]
+    for env in to_plot_g1g2.keys():
+        env_exp_dict = to_plot_g1g2[env]
         print("Visualizing ", env)
         plot_rewards(env_exp_dict, base_rew_dir, REWARD_KEY)
-        plot_rewards(env_exp_dict, base_logscale_dir, LOG_SCALE_KEY)
+        #plot_rewards(env_exp_dict, base_logscale_dir, LOG_SCALE_KEY)
+

@@ -27,10 +27,10 @@ parser.add_argument('--lr', type=float, default=0.0003, metavar='G',
                     help='learning rate (default: 0.0003)')
 parser.add_argument('--lr_ar', type=float, default=0.0003, metavar='G',
                     help='learning rate for autoregressive prior policy (used when policy type is Gaussian2)')
-parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
+parser.add_argument('--alpha', type=float, default=0.1, metavar='G',
                     help='Temperature parameter α determines the relative importance of the entropy\
                             term against the reward (default: 0.2)')
-parser.add_argument('--kl_constraint', type=float, default=0.0002, metavar='G',
+parser.add_argument('--kl_constraint', type=float, default=0.005, metavar='G',
                     help='encourages the optimizer to have a KL near this value.')
 parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, metavar='G',
                     help='Automatically adjust α (default: False)')
@@ -61,7 +61,7 @@ parser.add_argument('--lambda_reg', type=float, default=0.0, metavar='G',
                     help='How much regularization to use in base network.')
 parser.add_argument('--use_l2_reg', type=bool, default=True, metavar='G',
                     help="Uses l2 regularization on state-action policy if true, otherwise uses l1 regularization")
-parser.add_argument('--restrict_base_output', type=float, default=0.0001, metavar='G',
+parser.add_argument('--restrict_base_output', type=float, default=0.001, metavar='G',
                     help="Restricts output of base network by adding loss based on norm of network output")
 parser.add_argument('--position_only', type=bool, default=False, metavar='G',
                     help="Determines whether or not we only use the Mujoco positions versus the entire state. This " +
@@ -157,6 +157,7 @@ with experiment.train():
         # This will be used to plot the log std/scale parameters
         bstds = []
         ascales = []
+        ashifts = []
         critic_1_losses = []
         critic_2_losses = []
         policy_losses = []
@@ -196,11 +197,13 @@ with experiment.train():
                                                  random_base=args.random_base_train, return_distribution=True)
                     bstds.append(bstd)
                     ascales.append(ascle)
+                    ashifts.append(ashft)
                 else:
                     action, bmean, bstd, ascle, ashft = agent.select_action(state, prev_states, prev_actions,
                                                  random_base=args.random_base_train, return_distribution=True)
                     bstds.append(bstd)
                     ascales.append(ascle)
+                    ashifts.append(ashft)
             if PROFILING:
                 print("select action:", time.time() - prev_time) # TODO: Remove later
                 prev_time = time.time()
@@ -373,7 +376,9 @@ with experiment.train():
         else:
             ascales = np.array(ascales)
         scale_log = np.mean(ascales)
-        experiment.log_metric("AR log scale", scale_log, step=i_episode)
+        experiment.log_metric("AR log scale/sigma_mean", scale_log, step=i_episode)
+        mean_shifts = np.mean(ashifts)
+        experiment.log_metric("AR shift/sigma_std", mean_shifts, step=i_episode)
         mean_ent_loss = np.mean(np.array(ent_losses))
         experiment.log_metric("Mean Ent Loss", mean_ent_loss, step=i_episode)
         mean_critic_1_loss = np.mean(np.array(critic_1_losses))

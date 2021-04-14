@@ -18,5 +18,8 @@ class ReplayBuffer:
         batch = random.sample(self.buffer, batch_size)
         return map(np.stack, zip(*batch))
 
+    def percent_remaining(self):
+        return (self.capacity - len(self.buffer)) / self.capacity
+
     def __len__(self):
         return len(self.buffer)

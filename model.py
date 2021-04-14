@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import Normal
+from torch.distributions import Normal, Uniform
 
 LOG_SIG_MAX = 5
-LOG_SIG_MIN = -20
+LOG_SIG_MIN = -5
 epsilon = 1e-6
 
 
@@ -195,6 +195,8 @@ class GaussianPolicy(nn.Module):
             self.action_bias = torch.FloatTensor(
                 (action_space.high + action_space.low) / 2.)
 
+
+
     # Tracks the l1 or l2 loss
     def get_reg_loss(self, lambda_reg=0.0, use_l2_reg=False):
         # Don't waste time if no regularization
@@ -380,8 +382,8 @@ class GaussianPolicy2(nn.Module):
         nn.init.constant_(self.delta_std_linear_theta.bias, 0)
         nn.init.constant_(self.sigma_mean_linear_theta.weight, 0)
         nn.init.constant_(self.sigma_std_linear_theta.weight, 0)
-        nn.init.constant_(self.sigma_mean_linear_theta.bias, -5)
-        nn.init.constant_(self.sigma_std_linear_theta.bias, -5)
+        nn.init.constant_(self.sigma_mean_linear_theta.bias, -3)
+        nn.init.constant_(self.sigma_std_linear_theta.bias, -3)
 
         # action rescaling
         if action_space is None:
@@ -432,17 +434,30 @@ class GaussianPolicy2(nn.Module):
             x = F.relu(self.linear_theta_2(x))
         delta_mean = self.delta_mean_linear_theta(x)
         sigma_mean = self.sigma_mean_linear_theta(x)
-        delta_std = self.delta_std_linear_theta(x)
+        delta_log_std = self.delta_std_linear_theta(x)
         sigma_std = self.sigma_std_linear_theta(x)
+
+        delta_log_std = LOG_SIG_MAX - F.softplus(LOG_SIG_MAX - delta_log_std)
+        delta_log_std = LOG_SIG_MIN + F.softplus(delta_log_std - LOG_SIG_MIN)
 
         # Soft learning:
         MAX = 1
         MIN = 0
-        sigma_mean = MAX - F.softplus(MAX - sigma_mean)
-        sigma_mean = MIN + F.softplus(sigma_mean - MIN)
-        sigma_std = MAX - F.softplus(MAX - sigma_std)
-        sigma_std = MIN - F.softplus(sigma_std - MIN)
-        return delta_mean, sigma_mean, delta_std, sigma_std
+
+        # sigma_mean = MAX - F.softplus(MAX - sigma_mean)
+        # sigma_mean = MIN + F.softplus(sigma_mean - MIN)
+        # sigma_std = MAX - F.softplus(MAX - sigma_std)
+        # sigma_std = MIN + F.softplus(sigma_std - MIN)
+        sigma_mean = torch.sigmoid(sigma_mean)
+        sigma_std = torch.sigmoid(sigma_std)
+
+        # if torch.max(sigma_mean) > 1 or torch.max(sigma_std) > 1 or torch.min(sigma_mean) < 0 or torch.min(sigma_std)<0:
+        #      print(torch.max(sigma_mean).item(), torch.min(sigma_mean).item())
+        #      print(torch.max(sigma_std).item(), torch.min(sigma_std).item())
+        #      print()
+
+        #print(torch.max(sigma_mean), torch.max(sigma_std))
+        return delta_mean, sigma_mean, delta_log_std, sigma_std
 
     def forward_phi(self, prev_actions):
 
@@ -458,7 +473,7 @@ class GaussianPolicy2(nn.Module):
         # log_scale = torch.clamp(log_scale, min=LOG_SIG_MIN, max=LOG_SIG_MAX) <- What we had before.
         return mean, log_std
 
-    def sample(self, state, prev_states, prev_actions, return_distribution=False, random_base=False):
+    def sample(self, state, prev_states, prev_actions, return_distribution=False, random_base=False, uniform_weight=0):
 
         if self.action_lookback == 0:
             print("Don't run this without action lookback")
@@ -466,30 +481,57 @@ class GaussianPolicy2(nn.Module):
         # Generate our prior
         mean, log_std = self.forward_phi(prev_actions)
         # Detach the mean/std so we don't
-        delta_mean, sigma_mean, delta_std, sigma_std = self.forward_theta(state, mean.detach(), log_std.detach())
-
-        mean_adj = (1-sigma_mean) * mean.detach() + sigma_mean * delta_mean
-        log_std_adj = (1-sigma_std) * log_std.detach() + sigma_std * delta_std
+        delta_mean, sigma_mean, delta_log_std, sigma_std = self.forward_theta(state, mean.detach(), log_std.detach())
+        if torch.isnan(delta_mean).any():
+            print("Delta Mean NaN")
+        if torch.isnan(delta_log_std).any():
+            print("Delta STD NaN")
+        if torch.isnan(sigma_mean).any():
+            print("Sigma Mean NaN")
+        if torch.isnan(sigma_std).any():
+            print("Sigma STD NaN")
+        mean_adj = sigma_mean * mean.detach() + (1-sigma_mean) * delta_mean
+        log_std_adj = sigma_std * log_std.detach() + (1-sigma_std) * delta_log_std
         # Sample from the base distribution first.
         std_adj = log_std_adj.exp()
+
         prior_dist = Normal(mean, log_std.exp())
+        # sanity check testing
+        uniform_mix = Uniform(-(self.action_scale + self.action_bias), self.action_scale + self.action_bias)
+        if torch.isnan(mean_adj).any() or torch.isnan(log_std_adj).any():
+            print("NaN's in Mean/Log STD (adjusted)")
+        if torch.isinf(mean_adj).any() or torch.isinf(log_std_adj).any():
+            print("Infs in Mean/ Log STD (adjusted)")
         base_dist = Normal(mean_adj, std_adj)
         action = base_dist.rsample()
         # Base distribution
         log_prob_base = base_dist.log_prob(action)
         log_prob_prior = prior_dist.log_prob(action)
+
+        # if torch.max(torch.abs(log_prob_prior)) > 100:
+        #     print(torch.min(log_prob_prior).item(), torch.max(log_prob_prior).item())
+        #     print(sigma_mean.max().item(), sigma_std.max().item())
+        #     print()
+
         # Tanh the action
         tanh_action = torch.tanh(action)
+        mean_ret = torch.tanh(mean_adj) * self.action_scale + self.action_bias
+        action_ret = tanh_action * self.action_scale + self.action_bias
+
+        log_prob_uniform = uniform_mix.log_prob(action_ret)
 
         # Enforcing Action Bound
         log_prob_base -= torch.log(self.action_scale * (1 - tanh_action.pow(2)) + epsilon)
         log_prob_base = log_prob_base.sum(1, keepdim=True)
         log_prob_prior -= torch.log(self.action_scale * (1 - tanh_action.pow(2)) + epsilon)
         log_prob_prior = log_prob_prior.sum(1, keepdim=True)
+        # No need to worry about transforming the uniform dist since we are already in the bounded action space
+        log_prob_uniform = log_prob_uniform.sum(1, keepdim=True)
+        # Here we introduce the uniform mix to hopefully lessen the magnitude of the KL
+        log_prob_prior = torch.log(log_prob_prior.exp() * (1 - uniform_weight) + log_prob_uniform.exp() * uniform_weight + epsilon)
         kl_div = log_prob_base - log_prob_prior
 
-        mean_ret = torch.tanh(mean_adj) * self.action_scale + self.action_bias
-        action_ret = tanh_action * self.action_scale + self.action_bias
+
 
         if return_distribution:
             return action_ret, kl_div, mean_ret, mean, log_std.exp(), sigma_mean, sigma_std # TODO: Add delta's?
