@@ -107,7 +107,7 @@ def plot_rewards(env_exp_dict, save_folder, metric):
             # If using the G2 policy, then we want to see how good the prior network is on its own.
             if inference_type == "G2 ARSAC":
                 os.chdir(setup_directory("reward_plots_new/"))
-                _, _, _, _, _, rewards, _ = run_eval_episode(exp_key, env, actor_filename="actor_eval_65.model", prior_only=True) # Change actor_eval
+                _, _, _, _, _, rewards, _ = run_eval_episode(exp_key, env, actor_filename="actor_eval_150.model", prior_only=True) # Change actor_eval
                 prior_rws.append(sum(rewards))
                 os.chdir("../../")
 
@@ -640,7 +640,7 @@ walker_walk_g2 = {
                  "f439a152dc6d462596fababa20323359",
                  "756d6844ce8347819f6f6849893c1825",
                  "bfee66cd9d6d4a1baced9aecde015bd4"],
-    "G2 ARSAC": ["c07dbe5f34e84b898819ba6b27d225bd"]
+    "G2 ARSAC": ["45b36edcd38e4b9b8c0831a27ff6bf4e"]
 }
 
 # DM Control Pixel Tests

@@ -56,7 +56,7 @@ def plot_log_scale(experiment_ids, title, save_dir):
     #axs.legend(axs.get_lines(), experiment_dict.keys(), prop={'size': 10}, title="Lookback")
     fig.savefig(save_dir + title.replace(" ", "_") + "_log_scale.pdf")
 
-def run_eval_episode(exp_id, title, plot_agent=False, eval=True, actor_filename='actor.model', override_task=None, prior_only=False):
+def run_eval_episode(exp_id, title, plot_agent=False, eval=True, actor_filename='actor.model', override_task=None, prior_only=False, num_steps=1000):
     print("Running eval episode for " + exp_id + " (" + title + ")")
     experiment = comet_api.get_experiment(project_name=project_name,
                                           workspace=workspace,
@@ -113,7 +113,6 @@ def run_eval_episode(exp_id, title, plot_agent=False, eval=True, actor_filename=
 
     with imageio.get_writer('visual/' + title + '.gif', mode='I') as writer:
 
-        num_steps = 1000
         img = env.env.physics.render(camera_id=0, width=640, height=480)
         writer.append_data(img)
 
@@ -248,7 +247,7 @@ def plot_action(stds, means, shifts, scales, title, start_step=100, end_step=250
         axs[0].fill_between(x_axis, mean_y - std_y, mean_y + std_y, color='purple', alpha=0.25)
 
         axs[0].set_title("Space along Dimension " + str(dim))
-        axs[0].set_ylabel("Base Action")
+        axs[0].set_ylabel("Prior Action")
         axs[0].tick_params(
             axis='x',  # changes apply to the x-axis
             which='both',  # both major and minor ticks are affected
@@ -262,7 +261,7 @@ def plot_action(stds, means, shifts, scales, title, start_step=100, end_step=250
         axs[1].fill_between(x_axis, shift_y - scale_y, shift_y + scale_y, alpha=0.25)
         action_y = shift_y + scale_y * mean_y
         axs[1].plot(x_axis, action_y, '.', color='black')
-        axs[1].set_ylabel("Post-Affine-Transform Action")
+        axs[1].set_ylabel("Base Policy (blue)/Final Action (black)")
         axs[1].set_xlabel("Step")
 
         # Save the plot
@@ -380,17 +379,34 @@ halfcheetah_gym_dict = {
     "ARSAC": ["0aa921b90c614166818472adc025b451"]
 }
 
+# Gated policy with prior
+walker_walk_g2 = {
+    # "G1 ARSAC": ["5691959d6b01421d8dc1b78aaa3937ff",
+    #              "2d26d47b74554c8ca91c7302c616403b",
+    #              "f439a152dc6d462596fababa20323359",
+    #              "756d6844ce8347819f6f6849893c1825",
+    #              "bfee66cd9d6d4a1baced9aecde015bd4"],
+    "ARSAC": ["45b36edcd38e4b9b8c0831a27ff6bf4e"]
+}
+
+# Sort of a reverse of g1
+walker_walk_g3 = {
+    "ARSAC": ["e3446c4a9f9c4ee5a1ad1713f462fb7e"]
+}
+
 to_plot_dict_1x32 = {
     #"Walker Walk AutoEnt 1x32HS": walker_walk_base_dict5,
-    "Walker Run AutoEnt 1x32 HS": walker_run_base_dict5,
+    #"Walker Run AutoEnt 1x32 HS": walker_run_base_dict5,
     # "Hopper Stand AutoEnt 1x32 HS": hopper_stand_base_dict5,
     # "Hopper Hop AutoEnt 1x32 HS": hopper_hop_base_dict5,
     # "Quadruped Walk AutoEnt 1x32 HS": quadruped_walk_base_dict5,
     # "Quadruped Run AutoEnt 1x32 HS": quadruped_run_base_dict5,
-    "Cheetah Run AutoEnt 1x32 HS": cheetah_run_base_dict5
+    #"Cheetah Run AutoEnt 1x32 HS": cheetah_run_base_dict5
     # "Walker Walk RBO AutoEnt 1x32 HS": walker_rbo_increase_dict,
     # "Quadruped Walk RBO AutoEnt 1x32 HS": quadruped_rbo_increase_dict
     # "Gym HalfCheetah 1x32 HS": halfcheetah_gym_dict
+    # "Walker Walk G2 1x32HS": walker_walk_g2,
+    "Walker Walk G3 1x32HS": walker_walk_g3
 }
 
 to_plot_dict_2x256 = {
@@ -413,9 +429,9 @@ if __name__ == "__main__":
         dir_name = key
         # Will create all the necessary directories and go into the proper directory for plotting
         os.chdir(setup_directory(dir_name))
-        title = key + "eval250"
+        title = key
         arsac_exp_id = to_plot_dict_1x32[key]["ARSAC"][0]
-        actions, means, stds, shifts, scales, rewards, log_probs = run_eval_episode(arsac_exp_id, title, actor_filename="actor_eval_250.model")
+        actions, means, stds, shifts, scales, rewards, log_probs = run_eval_episode(arsac_exp_id, title, actor_filename="actor.model", prior_only=False)
 
         #sac_exp_id = to_plot_dict_1x32[key]["SAC"][0]
         #actions_sac, means_sac, stds_sac, _, _, rewards_sac, log_probs_sac = run_eval_episode(sac_exp_id, key, eval=False)

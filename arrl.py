@@ -1,7 +1,9 @@
 import os
+import copy
 import numpy as np
 import torch
 import torch.nn.functional as F
+from torch.distributions import Normal
 from torch.optim import Adam
 from utils import soft_update, hard_update
 from pixelstate import PixelState
@@ -11,6 +13,9 @@ from model import GaussianPolicy, QNetwork, ConvQNetwork, GaussianPolicy2
 PROFILING = False
 if PROFILING:
     import time
+
+# How often we update the copy of the policy: TODO: Make this a command-line argument
+UPDATE_POLICY_STEP = 500
 
 class ARRL(object):
     def __init__(self, num_inputs, action_space, args):
@@ -33,6 +38,7 @@ class ARRL(object):
         self.policy_type = args.policy
         self.target_update_interval = args.target_update_interval
         self.automatic_entropy_tuning = args.automatic_entropy_tuning
+        self.restrict_policy_deviation = args.restrict_policy_deviation
 
         self.device = torch.device("cuda" if args.cuda else "cpu")
         self.pixel_based = args.pixel_based
@@ -72,13 +78,19 @@ class ARRL(object):
 
         elif self.policy_type == "Gaussian2":
             if self.automatic_entropy_tuning:
-                #self.target_entropy = torch.Tensor((args.kl_constraint,)).item()
-                self.target_entropy = (1. + float(np.log(2))) * torch.prod(torch.Tensor(action_space.shape).to(self.device)).item()
+                self.target_entropy = torch.Tensor((args.kl_constraint,)).item()
+                #self.target_entropy = (1. + float(np.log(2))) * torch.prod(torch.Tensor(action_space.shape).to(self.device)).item()
                 self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
                 self.alpha_optim = Adam([self.log_alpha], lr=args.lr)
 
+                self.log_beta = torch.zeros(1, requires_grad=True, device=self.device)
+                self.beta_optim = Adam([self.log_alpha], lr=args.lr) # Initialize same as alpha bc why not?
+
             self.policy = GaussianPolicy2(num_inputs, action_space.shape[0], args.hidden_size, action_space,
                                          self.action_lookback_actor, args.hidden_dim_base).to(self.device)
+            # This is what we will update every 500 steps in order to not allow our policy to change too much from this.
+            if self.restrict_policy_deviation > 0:
+                self.policy_old = copy.deepcopy(self.policy)
             # Make sure to be able to specify a different learning rate for the autoregressive network
             all_params = set(self.policy.parameters())
             ar_params = []
@@ -86,9 +98,15 @@ class ARRL(object):
                 if "phi" in name:
                     ar_params.append(p)
             base_params = list(all_params - set(ar_params))
-            self.policy_optim = Adam([{"params": base_params},
-                                      {"params": ar_params, "lr": args.lr_ar}],
-                                     lr = args.lr)
+
+            # self.policy_optim = Adam([{"params": base_params},
+            #                           {"params": ar_params, "lr": args.lr_ar}],
+            #                          lr = args.lr)
+
+            # Create 2 separate optimizers, one for AR component and one for base.
+            # This gives us more flexibility in our optimization.
+            self.base_optim = Adam(base_params, lr=args.lr)
+            self.ar_optim = Adam(ar_params, lr=args.lr_ar)
         else:
             print("Shouldn't be here")
             exit(0)
@@ -134,7 +152,7 @@ class ARRL(object):
                 param.requires_grad = requires_grad
 
 
-    def update_parameters(self, memory, batch_size, updates, restrict_base_output=0.0):
+    def update_parameters(self, memory, batch_size, updates, restrict_base_output=0.0, step=None):
         # Sample a batch from memory
         if PROFILING:
             print("update parameters")
@@ -179,13 +197,13 @@ class ARRL(object):
             print("\tSetup:", time.time() - prev_time)
             prev_time = time.time()
         # Anneal the uniform weight parameter
-        uw = (memory.percent_remaining() * 1) ** 2
+        uw = 0#(memory.percent_remaining() * 1) ** 2
         with torch.no_grad():
             next_state_action, next_state_log_pi, _ = \
                 self.policy.sample(next_state_batch, prev_next_state_batch, prev_next_action_batch, uniform_weight=uw)
             qf1_next_target, qf2_next_target = self.critic_target(next_state_batch, next_state_action,
                                                                   prev_next_state_batch, prev_next_action_batch)
-            min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
+            min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi[0]
             next_q_value = reward_batch + mask_batch * self.gamma * min_qf_next_target
 
             if PROFILING:
@@ -203,40 +221,77 @@ class ARRL(object):
         qf_loss.backward()
         self.critic_optim.step()
 
-        pi, log_pi, _, policy_mean, policy_std, sigma_mean, sigma_std = \
+        pi, log_pi, _, policy_mean, policy_std, sigma_mean, delta_mean = \
             self.policy.sample(state_batch, prev_state_batch, prev_action_batch,
                                return_distribution=True, uniform_weight=uw)
 
         qf1_pi, qf2_pi = self.critic(state_batch, pi, prev_state_batch, prev_action_batch)
         min_qf_pi = torch.min(qf1_pi, qf2_pi)
-        # For logging the entropy/KL
-        ent_loss = (self.alpha * log_pi).mean()
-        policy_loss = ent_loss - min_qf_pi.mean()  # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
+        # Want to use this as the loss for th AR component of the policy
+        ent_loss = log_pi[1].mean()
+        # Want to use this to update our state action mapping
+        policy_loss = - min_qf_pi.mean()  # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
+        # policy_loss = self.alpha * log_pi[0].detach().mean() - min_qf_pi.mean()
+
+        # Here is where we adjust the policy loss to ensure we do not deviate too much from the policy during training.
+        # if self.restrict_policy_deviation > 0 and step is not None:
+        #     # Here we do the same thing with the old policy so that we can adjust the lost accordingly
+        #     _, _, _, policy_mean_old, policy_std_old, _, _ = \
+        #         self.policy_old.sample(state_batch, prev_state_batch, prev_action_batch,
+        #                                return_distribution=True, uniform_weight=uw)
+        #
+        #     prior_current = Normal(policy_mean, policy_std)
+        #     prior_old = Normal(policy_mean_old, policy_std_old)
+        #     kl_div_from_old = torch.distributions.kl_divergence(prior_current, prior_old).mean()
+        #     policy_loss += kl_div_from_old * self.restrict_policy_deviation
+        #
+        #     if self.automatic_entropy_tuning:
+        #         beta_loss = (self.log_beta.exp() * (kl_div_from_old - self.target_entropy).detach()).mean()
+        #         self.beta_optim.zero_grad()
+        #         beta_loss.backward()
+        #         self.beta_optim.step()
+        #         self.restrict_policy_deviation = self.log_beta.exp()[0]
+
         # Add in regularization to policy here.
         #policy_loss += self.policy.get_reg_loss(lambda_reg=self.lambda_reg, use_l2_reg=self.use_l2_reg)
 
         # Add loss if we choose to restrict the output of the network
-        if restrict_base_output > 0.0 and self.policy_type == "Gaussian":
-            norm_type = 'fro' if self.use_l2_reg else 'nuc'
-            norms = torch.norm(policy_mean, dim=1, p=norm_type).mean() + torch.norm(policy_std.log(), dim=1, p=norm_type).mean()
-            policy_loss += norms * restrict_base_output
-
-        # TODO: Do we add this in to encourage more use of the autoregressive prior?
-        if restrict_base_output > 0.0 and self.policy_type == "Gaussian2":
-            norm_type = 'fro' if self.use_l2_reg else 'nuc'
-            norms = torch.norm(sigma_mean, dim=1, p=norm_type).mean() + torch.norm(sigma_std, dim=1, p=norm_type).mean()
-            policy_loss += norms * restrict_base_output
+        # if restrict_base_output > 0.0 and self.policy_type == "Gaussian":
+        #     norm_type = 'fro' if self.use_l2_reg else 'nuc'
+        #     norms = torch.norm(policy_mean, dim=1, p=norm_type).mean() + torch.norm(policy_std.log(), dim=1, p=norm_type).mean()
+        #     policy_loss += norms * restrict_base_output
+        #
+        # if restrict_base_output > 0.0 and self.policy_type == "Gaussian2":
+        #     norm_type = 'fro' if self.use_l2_reg else 'nuc'
+        #     # Keep the scale close to 1 and keep the delta close to 0.
+        #     norms = torch.norm(torch.log(sigma_mean), dim=1, p=norm_type).mean() + torch.norm(delta_mean, dim=1, p=norm_type).mean()
+        #     policy_loss += norms * restrict_base_output
 
         # Finally we update the policy
-        self.policy_optim.zero_grad()
-        policy_loss.backward()
-        self.policy_optim.step()
+        if self.policy_type == "Gaussian":
+            pass
+            # self.policy_optim.zero_grad()
+            # policy_loss.backward()
+            # self.policy_optim.step()
+        elif self.policy_type == "Gaussian2":
+
+            # self.base_optim.zero_grad() # Zero state-action mapping grad
+            # policy_loss.backward(retain_graph=True) # Need to retain graph so we can still do the entropy loss.
+            # self.ar_optim.zero_grad() # Zero the AR gradient since we only want this to deal with Entropy loss.
+            # ent_loss.backward() # This should not affect the state-action weights since we did detach()
+            # self.base_optim.step() # Update base weights
+            # self.ar_optim.step() # Update AR weights
+
+            1
+
+
 
         if PROFILING:
             print("\tCritic Loss:", time.time() - prev_time)
             prev_time = time.time()
         if self.automatic_entropy_tuning:
-            alpha_loss = (self.log_alpha * (log_pi - self.target_entropy).detach()).mean()
+            #print(torch.min(log_pi).item(), torch.max(log_pi).item(), torch.mean(log_pi).item())
+            alpha_loss = (self.log_alpha.exp() * (log_pi[0] - self.target_entropy).detach()).mean()
 
             self.alpha_optim.zero_grad()
             alpha_loss.backward()
@@ -255,6 +310,9 @@ class ARRL(object):
             print("\tBackprop:", time.time() - prev_time)  # TODO: Remove later
             prev_time = time.time()
 
+        # Final Step: Every 500 steps we reset the "old" policy
+        if step is not None and step % UPDATE_POLICY_STEP == 0 and self.restrict_policy_deviation > 0:
+            self.policy_old = copy.deepcopy(self.policy)
 
         return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), ent_loss.item(), alpha_tlogs.item()
 

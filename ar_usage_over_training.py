@@ -28,12 +28,16 @@ cheetah_run_base_dict5 = {
     "ARSAC": ["2f23146b1baa45c8806a081cbfb9023e"]
 }
 
+walker_walk_g3 = {
+    "ARSAC": ["e3446c4a9f9c4ee5a1ad1713f462fb7e"]
+}
+
 to_plot_dict_2x256 = {
     "Walker Run AutoEnt 2x256HS": walker_run_base_dict4
 }
 
 to_plot_dict_1x32 = {
-    "Walker Run AutoEnt 1x32HS": walker_run_base_dict5,
+    "Walker Run AutoEnt 1x32HS": walker_walk_g3
     #"Cheetah Run AutoEnt 1x32HS": cheetah_run_base_dict5
 }
 
@@ -49,7 +53,7 @@ if __name__ == '__main__':
             actor_filename = "actor_eval_" + str(ep) + ".model"
             arsac_exp_id = base_dict["ARSAC"][0]
             # Keep the means so that we can compute the base distribution log probs
-            _, _, _, shifts, _, _, _ = \
+            _, _, shifts, _, _, _, _ = \
                     run_eval_episode(arsac_exp_id, key, plot_agent=False, eval=True, actor_filename=actor_filename)
             # This will hopefully give an indication for how much the ar_policy acts nontrivially on the policy over training.
             arsac_var.append(np.var(shifts))

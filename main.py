@@ -27,13 +27,15 @@ parser.add_argument('--lr', type=float, default=0.0003, metavar='G',
                     help='learning rate (default: 0.0003)')
 parser.add_argument('--lr_ar', type=float, default=0.0003, metavar='G',
                     help='learning rate for autoregressive prior policy (used when policy type is Gaussian2)')
-parser.add_argument('--alpha', type=float, default=0.1, metavar='G',
+parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
                     help='Temperature parameter α determines the relative importance of the entropy\
                             term against the reward (default: 0.2)')
-parser.add_argument('--kl_constraint', type=float, default=0.005, metavar='G',
+parser.add_argument('--kl_constraint', type=float, default=0.0, metavar='G', # Try this for larger values
                     help='encourages the optimizer to have a KL near this value.')
-parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, metavar='G',
+parser.add_argument('--automatic_entropy_tuning', type=bool, default=True, metavar='G',
                     help='Automatically adjust α (default: False)')
+parser.add_argument('--restrict_policy_deviation', type=float, default=0.1, metavar='G',
+                    help='Add a kl_div term to the policy loss to prevent the policy from changing too much over training.')
 ################ Specific to ARSAC ####################
 parser.add_argument('--use_gated_transform', type=bool, default=False, metavar='G',
                     help='Use Inverse Autoregressive Flow')
@@ -61,7 +63,7 @@ parser.add_argument('--lambda_reg', type=float, default=0.0, metavar='G',
                     help='How much regularization to use in base network.')
 parser.add_argument('--use_l2_reg', type=bool, default=True, metavar='G',
                     help="Uses l2 regularization on state-action policy if true, otherwise uses l1 regularization")
-parser.add_argument('--restrict_base_output', type=float, default=0.001, metavar='G',
+parser.add_argument('--restrict_base_output', type=float, default=0.000, metavar='G',
                     help="Restricts output of base network by adding loss based on norm of network output")
 parser.add_argument('--position_only', type=bool, default=False, metavar='G',
                     help="Determines whether or not we only use the Mujoco positions versus the entire state. This " +
@@ -212,7 +214,9 @@ with experiment.train():
                 # Number of updates per step in environment
                 for i in range(args.updates_per_step):
                     # Update parameters of all the networks (also update the restricted base output
-                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates, restrict_base_output=rbo)
+                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = \
+                        agent.update_parameters(memory, args.batch_size, updates,
+                                                restrict_base_output=rbo, step=total_numsteps)
 
                     critic_1_losses.append(critic_1_loss)
                     critic_2_losses.append(critic_2_loss)
@@ -376,9 +380,9 @@ with experiment.train():
         else:
             ascales = np.array(ascales)
         scale_log = np.mean(ascales)
-        experiment.log_metric("AR log scale/sigma_mean", scale_log, step=i_episode)
+        experiment.log_metric("AR scale/sigma", scale_log, step=i_episode)
         mean_shifts = np.mean(ashifts)
-        experiment.log_metric("AR shift/sigma_std", mean_shifts, step=i_episode)
+        experiment.log_metric("AR shift/delta", mean_shifts, step=i_episode)
         mean_ent_loss = np.mean(np.array(ent_losses))
         experiment.log_metric("Mean Ent Loss", mean_ent_loss, step=i_episode)
         mean_critic_1_loss = np.mean(np.array(critic_1_losses))
