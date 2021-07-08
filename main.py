@@ -124,7 +124,7 @@ agent = ARRL(state_space_size, env.action_space, args)
 
 # Comet logging
 experiment = Experiment(api_key="tHDbEydFQGW7F1MWmIKlEvrly",
-                        project_name="arsac_test", workspace="aguerra")
+                        project_name="arsac", workspace="aguerra")
 experiment.log_parameters(args.__dict__)
 json_str = json.dumps(args.__dict__)
 experiment.log_asset_data(json_str, name="args")
