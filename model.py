@@ -3,12 +3,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal, Uniform
 
-LOG_SIG_MAX = 10
-LOG_SIG_MIN = -10
+LOG_SIG_MAX = 10.0
+LOG_SIG_MIN = -10.0
 epsilon = 1e-6
 
-DELTA_MAX = 10
-DELTA_MIN = -10
+DELTA_MAX = 10.0
+DELTA_MIN = -10.0
 
 # Initialize Policy weights
 def weights_init_(m):
@@ -377,10 +377,16 @@ class GaussianPolicy2(nn.Module):
 
         self.apply(weights_init_)
         # Will make the initial adjustment close to 0 (to avoid large KLs)
+        # First the prior network
+        nn.init.constant_(self.mean_linear_phi.weight, 0)
+        nn.init.constant_(self.mean_linear_phi.bias, 0)
+        nn.init.constant_(self.log_std_linear_phi.weight, 0)
+        nn.init.constant_(self.log_std_linear_phi.bias, 3) # Initialize the prior to have high variance
+        # Then the state action network
         nn.init.constant_(self.delta_mean_linear_theta.weight, 0)
         nn.init.constant_(self.delta_std_linear_theta.weight, 0)
         nn.init.constant_(self.delta_mean_linear_theta.bias, 0)
-        nn.init.constant_(self.delta_std_linear_theta.bias, 0)
+        nn.init.constant_(self.delta_std_linear_theta.bias, 3) # Initialize the state-action mapping to have high variance.
         nn.init.constant_(self.sigma_mean_linear_theta.weight, 0)
         nn.init.constant_(self.sigma_std_linear_theta.weight, 0)
         nn.init.constant_(self.sigma_mean_linear_theta.bias, -4) # <- initial policy will primarily use the state-action mapping
@@ -469,10 +475,11 @@ class GaussianPolicy2(nn.Module):
         # Generate our prior
         mean, log_std = self.forward_phi(prev_actions)
         prior_dist = Normal(mean, log_std.exp())
-        sampled_action = prior_dist.rsample()
+        # sampled_action = prior_dist.rsample()
 
         # Detach the mean/std so we don't
         delta_mean, sigma_mean, delta_log_std, sigma_std = self.forward_theta(state, mean.detach(), log_std.detach())
+
         if torch.isnan(delta_mean).any():
             print("Delta Mean NaN")
         if torch.isnan(delta_log_std).any():
@@ -484,11 +491,11 @@ class GaussianPolicy2(nn.Module):
 
         # Below we give three methods of parameterizing the policy
 
-        # Method #1 (Gated) # TODO: Potentially try flow-based method where base is the prior
+        # Method #1 (Gated)
         mean_adj = sigma_mean * mean.detach() + (1 - sigma_mean) * delta_mean
         log_std_adj = sigma_std * log_std.detach() + (1-sigma_std) * delta_log_std
 
-        # Method #2 (Scale + Shift) # TODO: Try NF with no scale to see if it trains.
+        # Method #2 (Scale + Shift)
         #mean_adj = sigma_mean * mean.detach() + delta_mean
         # action_adj = sigma_mean * sampled_action.detach() + delta_mean
         #log_std_adj = sigma_std * log_std.detach() + delta_log_std
@@ -522,7 +529,8 @@ class GaussianPolicy2(nn.Module):
         # Enforcing Action Bound
         log_prob_base -= torch.log(self.action_scale * (1 - tanh_action.pow(2)) + epsilon)
         log_prob_base = log_prob_base.sum(1, keepdim=True)
-        log_prob_prior -= torch.log(self.action_scale * (1 - tanh_action.pow(2)) + epsilon)
+
+        log_prob_prior -= torch.log(self.action_scale * (1 - tanh_action.detach().pow(2)) + epsilon) # !!!!!
         log_prob_prior = log_prob_prior.sum(1, keepdim=True)
         # No need to worry about transforming the uniform dist since we are already in the bounded action space
         #log_prob_uniform = log_prob_uniform.sum(1, keepdim=True)
@@ -530,11 +538,12 @@ class GaussianPolicy2(nn.Module):
         #log_prob_prior = torch.log(log_prob_prior.exp() * (1 - uniform_weight) + log_prob_uniform.exp() * uniform_weight + epsilon)
         # Split the KL into two parts, one for policy_loss and one for ent_loss so gradients don't interfere with each other
         kl_div = (log_prob_base - log_prob_prior.detach(), log_prob_base.detach() - log_prob_prior)
-
+        # kl_div2 = log_prob_base - log_prob_prior
         if return_distribution:
-            return action_ret, kl_div, mean_ret, mean, log_std.exp(), sigma_mean, delta_mean
+            return action_ret, kl_div, mean_ret.detach(), mean, \
+                   log_std.exp(), sigma_mean.detach(), delta_mean.detach() #delta_log_std.exp().detach()
         else:
-            return action_ret, kl_div, mean_ret
+            return action_ret, kl_div, mean_ret.detach()
 
     def to(self, device):
         self.action_scale = self.action_scale.to(device)

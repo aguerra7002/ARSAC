@@ -27,10 +27,10 @@ parser.add_argument('--lr', type=float, default=0.0003, metavar='G',
                     help='learning rate (default: 0.0003)')
 parser.add_argument('--lr_ar', type=float, default=0.0003, metavar='G',
                     help='learning rate for autoregressive prior policy (used when policy type is Gaussian2)')
-parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
+parser.add_argument('--alpha', type=float, default=0.1, metavar='G',
                     help='Temperature parameter α determines the relative importance of the entropy\
                             term against the reward (default: 0.2)')
-parser.add_argument('--kl_constraint', type=float, default=0.0, metavar='G', # Try this for larger values
+parser.add_argument('--kl_constraint', type=float, default=0.001, metavar='G', # Try this for larger values
                     help='encourages the optimizer to have a KL near this value.')
 parser.add_argument('--automatic_entropy_tuning', type=bool, default=True, metavar='G',
                     help='Automatically adjust α (default: False)')
@@ -57,7 +57,7 @@ parser.add_argument('--random_base_train', type=bool, default=False, metavar='G'
                     help='Uses a standard Gaussian for the base distribution during training.')
 parser.add_argument('--random_base_eval', type=bool, default=False, metavar='G',
                     help='Uses a standard Gaussian for the base distribution during eval episodes.')
-parser.add_argument('--hidden_dim_base', type=int, default=32, metavar='G',
+parser.add_argument('--hidden_dim_base', type=int, default=256, metavar='G',
                     help='Determines how many hidden units to use for the hidden layer of the state mapping')
 parser.add_argument('--lambda_reg', type=float, default=0.0, metavar='G',
                     help='How much regularization to use in base network.')
@@ -111,7 +111,6 @@ torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 env.seed(args.seed)
 action_space_size = env.action_space.sample().shape[0]
-
 
 state_space_size = env.get_state_space_size(position_only=args.position_only)
 
@@ -377,12 +376,13 @@ with experiment.train():
         experiment.log_metric("Base log stddev", std_log, step=i_episode)
         if args.policy == "Gaussian":
             ascales = np.log(np.array(ascales))
+            mean_shifts = np.mean(ashifts)
         else:
             ascales = np.array(ascales)
+            mean_shifts = np.mean(np.log(ashifts))
         scale_log = np.mean(ascales)
         experiment.log_metric("AR scale/sigma", scale_log, step=i_episode)
-        mean_shifts = np.mean(ashifts)
-        experiment.log_metric("AR shift/delta", mean_shifts, step=i_episode)
+        experiment.log_metric("AR shift/delta_log_std", mean_shifts, step=i_episode)
         mean_ent_loss = np.mean(np.array(ent_losses))
         experiment.log_metric("Mean Ent Loss", mean_ent_loss, step=i_episode)
         mean_critic_1_loss = np.mean(np.array(critic_1_losses))

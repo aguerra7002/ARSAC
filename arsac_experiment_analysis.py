@@ -130,8 +130,11 @@ def run_eval_episode(exp_id, title, plot_agent=False, eval=True, actor_filename=
                                                                   eval=eval,
                                                                   return_distribution=True,
                                                                   return_prob = True)
+            if args.policy == "Gaussian2":
+                log_prob = log_prob[0] # Hacky fix
+
             # Take a step in the environment. Note, we get the next state in the following line in case we only want pos
-            if prior_only:
+            if prior_only and step > 100:
                 # Here, when using Gaussian2 policy, mean represents the prior mean which is solely a function of previous actions
                 act_prior = np.tanh(mean)
                 tmp_st, reward, done, _ = env.step(mean)
@@ -286,7 +289,6 @@ def setup_directory(dir):
         os.makedirs(visual_loc)
         os.makedirs(os.path.join(visual_loc, "jpgs"))
         os.makedirs(os.path.join(visual_loc, "pdfs"))
-    print(loc)
     return loc
 
 # Base Tests with 2x256 HS AutoEntropy Tuning, BS 256

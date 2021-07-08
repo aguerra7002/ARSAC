@@ -15,7 +15,7 @@ if PROFILING:
     import time
 
 # How often we update the copy of the policy: TODO: Make this a command-line argument
-UPDATE_POLICY_STEP = 500
+UPDATE_POLICY_STEP = 1000
 
 class ARRL(object):
     def __init__(self, num_inputs, action_space, args):
@@ -99,9 +99,9 @@ class ARRL(object):
                     ar_params.append(p)
             base_params = list(all_params - set(ar_params))
 
-            # self.policy_optim = Adam([{"params": base_params},
-            #                           {"params": ar_params, "lr": args.lr_ar}],
-            #                          lr = args.lr)
+            self.policy_optim = Adam([{"params": base_params},
+                                      {"params": ar_params, "lr": args.lr_ar}],
+                                     lr = args.lr)
 
             # Create 2 separate optimizers, one for AR component and one for base.
             # This gives us more flexibility in our optimization.
@@ -221,41 +221,44 @@ class ARRL(object):
         qf_loss.backward()
         self.critic_optim.step()
 
-        pi, log_pi, _, policy_mean, policy_std, sigma_mean, delta_mean = \
+        sampled_action_batch, log_pi, _, policy_mean, policy_std, sigma_mean, delta_mean = \
             self.policy.sample(state_batch, prev_state_batch, prev_action_batch,
                                return_distribution=True, uniform_weight=uw)
+        # sampled_action_batch should be detached from the prior.
 
-        qf1_pi, qf2_pi = self.critic(state_batch, pi, prev_state_batch, prev_action_batch)
+        qf1_pi, qf2_pi = self.critic(state_batch, sampled_action_batch, prev_state_batch, prev_action_batch)
         min_qf_pi = torch.min(qf1_pi, qf2_pi)
-        # Want to use this as the loss for th AR component of the policy
-        ent_loss = log_pi[1].mean()
+
         # Want to use this to update our state action mapping
-        policy_loss = - min_qf_pi.mean()  # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
-        # policy_loss = self.alpha * log_pi[0].detach().mean() - min_qf_pi.mean()
+        # policy_loss = -min_qf_pi.mean()  # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
+        policy_loss = self.alpha * log_pi[0].mean() - min_qf_pi.mean()
+
+        # Want to use this as the loss for the AR component of the policy
+        ent_loss = log_pi[1].mean()
 
         # Here is where we adjust the policy loss to ensure we do not deviate too much from the policy during training.
-        # if self.restrict_policy_deviation > 0 and step is not None:
-        #     # Here we do the same thing with the old policy so that we can adjust the lost accordingly
-        #     _, _, _, policy_mean_old, policy_std_old, _, _ = \
-        #         self.policy_old.sample(state_batch, prev_state_batch, prev_action_batch,
-        #                                return_distribution=True, uniform_weight=uw)
-        #
-        #     prior_current = Normal(policy_mean, policy_std)
-        #     prior_old = Normal(policy_mean_old, policy_std_old)
-        #     kl_div_from_old = torch.distributions.kl_divergence(prior_current, prior_old).mean()
-        #     policy_loss += kl_div_from_old * self.restrict_policy_deviation
-        #
-        #     if self.automatic_entropy_tuning:
-        #         beta_loss = (self.log_beta.exp() * (kl_div_from_old - self.target_entropy).detach()).mean()
-        #         self.beta_optim.zero_grad()
-        #         beta_loss.backward()
-        #         self.beta_optim.step()
-        #         self.restrict_policy_deviation = self.log_beta.exp()[0]
+        if self.restrict_policy_deviation > 0 and step is not None:
+            # Here we do the same thing with the old policy so that we can adjust the lost accordingly
+            _, _, _, policy_mean_old, policy_std_old, _, _ = \
+                self.policy_old.sample(state_batch, prev_state_batch, prev_action_batch,
+                                       return_distribution=True, uniform_weight=uw)
+
+            prior_current = Normal(policy_mean, policy_std)
+            prior_old = Normal(policy_mean_old.detach(), policy_std_old.detach())
+            kl_div_from_old = torch.distributions.kl_divergence(prior_current, prior_old).mean()
+            ent_loss += kl_div_from_old * self.restrict_policy_deviation
+
+            if self.automatic_entropy_tuning:
+                beta_loss = (self.log_beta.exp() * kl_div_from_old.detach()).mean()
+                self.beta_optim.zero_grad()
+                beta_loss.backward()
+                self.beta_optim.step()
+                self.restrict_policy_deviation = self.log_beta.exp()[0]
 
         # Add in regularization to policy here.
-        #policy_loss += self.policy.get_reg_loss(lambda_reg=self.lambda_reg, use_l2_reg=self.use_l2_reg)
-
-        # Add loss if we choose to restrict the output of the network
+        # policy_loss += self.policy.get_reg_loss(lambda_reg=self.lambda_reg, use_l2_reg=self.use_l2_reg)
+        #
+        # # Add loss if we choose to restrict the output of the network
         # if restrict_base_output > 0.0 and self.policy_type == "Gaussian":
         #     norm_type = 'fro' if self.use_l2_reg else 'nuc'
         #     norms = torch.norm(policy_mean, dim=1, p=norm_type).mean() + torch.norm(policy_std.log(), dim=1, p=norm_type).mean()
@@ -269,20 +272,32 @@ class ARRL(object):
 
         # Finally we update the policy
         if self.policy_type == "Gaussian":
-            pass
-            # self.policy_optim.zero_grad()
-            # policy_loss.backward()
-            # self.policy_optim.step()
+            self.policy_optim.zero_grad()
+            policy_loss.backward()
+            self.policy_optim.step()
+
         elif self.policy_type == "Gaussian2":
 
-            # self.base_optim.zero_grad() # Zero state-action mapping grad
-            # policy_loss.backward(retain_graph=True) # Need to retain graph so we can still do the entropy loss.
-            # self.ar_optim.zero_grad() # Zero the AR gradient since we only want this to deal with Entropy loss.
-            # ent_loss.backward() # This should not affect the state-action weights since we did detach()
-            # self.base_optim.step() # Update base weights
-            # self.ar_optim.step() # Update AR weights
+            # Update the AR component based on KL loss (called ent_loss here)
+            self.ar_optim.zero_grad()
+            ent_loss.backward(retain_graph=True)
+            self.ar_optim.step()
+            # self.ar_optim.zero_grad()
 
-            1
+            # Should print all 0's
+            # for name, param in self.policy.named_parameters():
+            #     if "theta" in name:
+            #         print(name, param.grad)
+
+            # Update the state-action network based on standard policy loss
+            self.base_optim.zero_grad()
+            policy_loss.backward()
+            self.base_optim.step()
+
+            # Should print all 0's
+            # for name, param in self.policy.named_parameters():
+            #     if "phi" in name:
+            #         print(name, param.grad)
 
 
 

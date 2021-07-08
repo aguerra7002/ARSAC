@@ -26,7 +26,7 @@ class EnvWrapper:
             self.max_episode_steps = self.env._max_episode_steps
         elif self.type == EnvWrapper.DM_CONTROL:
             self.env = suite.load(domain_name=domain, task_name=task)
-            self.action_space = Box(low=self.env.action_spec().minimum, high=self.env.action_spec().maximum, dtype=np.float32)
+            self.action_space = Box(low=self.env.action_spec().minimum, high=self.env.action_spec().maximum, dtype=np.float64)
             self.qpos_size = self.env.physics.data.qpos.shape[0]
             # if pixel_based:
             #     self.pixel_env = pixels.Wrapper(self.env, render_kwargs={"camera_id" : 0, "width" : res, "height": res})
