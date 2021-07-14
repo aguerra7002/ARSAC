@@ -26,9 +26,9 @@ critic_filename = "critic.model"
 
 parser = argparse.ArgumentParser(description='PyTorch AutoRegressiveFlows-RL Args')
 # Once we get Mujoco then we will use this one
-parser.add_argument('--experiment_id', default="14ae9513a53a42bf89b65d02f6cdc5e7",
+parser.add_argument('--experiment_id', default="66b15720c86f49a7ba235fe95afba25e",
                     help='Experiment ID we want to transfer our experiment from')
-parser.add_argument('--task-name', default="walk",
+parser.add_argument('--task-name', default="run",
                     help='Transfer task')
 parser.add_argument('--transfer_flow', default=True,
                     help="Determines whether or not we transfer the flow network")
@@ -40,7 +40,7 @@ parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
 parser.add_argument('--num_steps', type=int, default=3000000, metavar='N',
                     help='maximum number of steps (default: 3000000)')
-parser.add_argument('--start_steps', type=int, default=20000, metavar='N',
+parser.add_argument('--start_steps', type=int, default=10000, metavar='N',
                     help='Number of steps we take to fill the replay buffer.')
 parser.add_argument('--freeze_steps', type=int, default=0, metavar='N',
                     help='number of steps we run without updating the flow network')

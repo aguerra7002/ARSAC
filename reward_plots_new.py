@@ -11,6 +11,7 @@ rc('font', family='serif')
 import seaborn as sns
 sns.set_palette('Paired')
 import os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE" # TODO: Fix this hack by installing nomkl
 
 # comet
 api_key = 'tHDbEydFQGW7F1MWmIKlEvrly'
@@ -105,16 +106,16 @@ def plot_rewards(env_exp_dict, save_folder, metric):
             else:
                 print("Invalid Comet ML Experiment Key provided: " + exp_key)
             # If using the G2 policy, then we want to see how good the prior network is on its own.
-            if inference_type == "G2 ARSAC":
-                os.chdir(setup_directory("reward_plots_new/"))
-                _, _, _, _, _, rewards, _ = run_eval_episode(exp_key, env, actor_filename="actor_eval_150.model", prior_only=True) # Change actor_eval
-                prior_rws.append(sum(rewards))
-                os.chdir("../../")
+            # if inference_type == "G2 ARSAC":
+            #     os.chdir(setup_directory("reward_plots_new/"))
+            #     _, _, _, _, _, rewards, _ = run_eval_episode(exp_key, env, actor_filename="actor_eval_150.model", prior_only=True) # Change actor_eval
+            #     prior_rws.append(sum(rewards))
+            #     os.chdir("../../")
 
-        if inference_type == "G2 ARSAC":
-            avg_prior_rw = sum(prior_rws) / len(prior_rws)
-            prior_array = [avg_prior_rw] * mean.shape[0]
-            plt.plot(prior_array, '-.', color='black', label="AR Prior Only")
+        # if inference_type == "G2 ARSAC":
+        #     avg_prior_rw = sum(prior_rws) / len(prior_rws)
+        #     prior_array = [avg_prior_rw] * mean.shape[0]
+        #     plt.plot(prior_array, '-.', color='black', label="AR Prior Only")
 
         if len(returns_list) > 1:
             mean, std = aggregate_returns(returns_list)
@@ -487,7 +488,7 @@ humanoid_walk_base_dict4 = {"SAC": ['d2014eeb19034c1b89187ba315ed6851',
                                          '159eade496f246e5b51fa0ee7c864644',
                                          'f1a095308fe149d5a33f688067861881',
                                          '20661ba090e2422586618cf543a8db00'],
-                               "ARSAC-5": ['77b0e57f24ce419baec3414030ca9b29',
+                            "ARSAC-5": ['77b0e57f24ce419baec3414030ca9b29',
                                          '8209c120f6074a9bb23ddd11b475726f',
                                          '3dc93883ee494821bbf0a32487e49df6',
                                          '77b0e57f24ce419baec3414030ca9b29',
@@ -643,23 +644,108 @@ walker_walk_g2 = {
     "G2 ARSAC": ["45b36edcd38e4b9b8c0831a27ff6bf4e"]
 }
 
-# DM Control Pixel Tests
-walker_walk_pixel_dict = {"SAC": ['6392d6c1f77547429ab16c46d20f339c',
-                                    '',
-                                    ''],
-                           "ARSAC": ['2c27e50c296e44509e3d7ca60387d130',
-                                     '',
-                                     '']}
+# Walker walk tests, now with the g2 policy formulation, and a hidden dimension of 2x256
+walker_walk_g2_2x256 = {
+    "SAC": ['2ea19479726d44dfa8cd06d94f620178',
+            '0f1c2f68e5124ff282283fd6a28961f6',
+            '155446f560724c07837e42841527d9d0',
+            '1b4f31622c884af2adac83fc4df5b6f6',
+            'f11b9050bd1c4ffe93cd049d05dd7820'],
+    "G1 ARSAC": ['113982d9ab8b4faf849ef5a2efb712f5',
+                 '0db2b5f019f3424eb0c17a34265932e3',
+                 '72775f63da174d9889c956d34f8335b1',
+                 '279206ac947343439547f827a55ca309',
+                 '47637c6e9ca646dd8fe6c4eb974ab7c9'],
+    # These are the new experiments
+    # "SAC prior": ["f3a366686715481894fad12e096c2bf2"],
+    "G2 ARSAC": ["66b15720c86f49a7ba235fe95afba25e",
+                 "4fa84897781449af97c021a5bcebd048",
+                 "305380143f924f5ab4bff4f15538fdb2",
+                 "3fa6bb7b36844cf88e67e83d2e823e8d",
+                 "a9931ceebbab4cfba541cc90aa39fbff"]
+}
+
+walker_run_g2_2x256 = {
+    "SAC": ['707acf6bfd714c6582e737db0191743f',
+            '1cd7e219a5fb46409eab5ca2bd476420',
+            '76eb27add9a04d4c8867379ea0d20984',
+            'dd362b0740db449b8a156c9edf4e2b49',
+            'ba7f1b039bc84c99b228924d6f2e4bc2'],
+    "ARSAC": ['cd2b9f003e404a8daff56dea22e0bcb3',
+              'a70d6e85bebb48afa5ab7cd90a462f84',
+              'a6bffea54b32423da7f4a2d2ffc6b0b8',
+              'b549680b06e74dd884bb5dc352e8ed97',
+              '73cdbd54d8914d3bbefd4597e0eb89d5'],
+    "G2 ARSAC": ["96db136a0da5418c8be028ab208c92f2",
+                 "4c707c3e253645feafcd2e862c398367",
+                 "082248f8d64a41efa916ca082ad06cbf",
+                 "0413211ea30c464caa8275fee0ddd14c",
+                 "9c77bd14ef8849b691d07c874f30d6ed"]
+}
+
+cheetah_run_g2_2x256 = {
+    "SAC": ['d4f8852ef3724b1b922a470f1faecc8e',
+            '472c1e81b25c4578a5ccadc45f93255f',
+            'fb194bd6fdd54d06bfa588118cd1451f',
+            '9168d02d34c34b13bef04eecfbcc2bcf',
+            '77350e72c5a047b5a45b18e77da2653a'],
+    "ARSAC": ['d249049426d04c44bbeb1a817e20369c',
+              '978bfd18862d4bddb55748312fe82d5c',
+              '88735d788b2f43c397bc90cc9d141a9e',
+              '6440820fe6c44b93b17cf2ea3cfb0b44',
+              '45c8f087f682459593b8286f366effb0'],
+    "G2 ARSAC": ["",
+                 "7ec9df251f1c4044b68088bf119c089f",
+                 "",
+                 "3325c23992e548be8eb30d05cf8dfad4",
+                 "ad4e788ffb9b4b9baee240cf74879146"]
+}
+
+humanoid_walk_g2_2x256 = {
+    "SAC": ['d2014eeb19034c1b89187ba315ed6851',
+            '1a33932b508240a1ae11289bcefba9f0',
+            '834dc29681b74705bfc7328321f8d33c',
+            '6dcc45fb34694a43a77d261c220359b3',
+            'b278744d70c44d238369aa1c8591658e'],
+    "ARSAC-5": ['77b0e57f24ce419baec3414030ca9b29',
+                '8209c120f6074a9bb23ddd11b475726f',
+                '3dc93883ee494821bbf0a32487e49df6',
+                '77b0e57f24ce419baec3414030ca9b29',
+                '21a9cc1dba8543d0b147c5dd11d9cc37'],
+    "G2 ARSAC": ["3e1b45e1568143e5a3c6af14a466ebc0",
+                 "5608c59dfb8e41ea8cdb77d22b7ca0f6",
+                 "a50afe1b87564931a70092b9d2b0ef4b",
+                 "68eb2e3958bc4c828ddd22940644cc4e",
+                 "d7a067ffbb534edc983ec4807f580828"]
+}
+
+humanoid_run_g2_2x256 ={
+    "SAC": ['d4f897346e714022bb2e7cc3e1b795b7',
+            'd4d0f5333ec84290bdc3342885be90f6',
+            '4ccab64dd972429892e79b2b80ef9ae1',
+            '534810614ac54afc9d3c65c2f42b5f79',
+            '4f5781e5784e402c9176eea4ee0e20ef'],
+    "ARSAC-5": ['0b22c9785f0440ec9166b99e6aa0ede4',
+                '51a0de4aaec04d2aa2f5e84eaf89374b',
+                '0f02afcac7a14116a57e17fbe86f41e3',
+                '004f7b3ab7c74188a3950ad5526c3a4b',
+                '51a0de4aaec04d2aa2f5e84eaf89374b'],
+    "G2 ARSAC": ["dcd1720d723c437b8e7d696d0c3294d8",
+                 "2ec24c1d22b14b9eb4cd3864e326ed3b",
+                 "8baaeddb5f204d96910f863c3e7d58e5",
+                 "949d6c435f524a1bb9249a9741fd8f0a",
+                 "dc13f9dfad714ced8114b2a94461da39"]
+}
 
 to_plot_transfer_dict2 = {
-    "Walker Run Transfer AutoEnt 2x256HS" : walker_transfer_dict2,
-    "Quadruped Run Transfer AutoEnt 2x256HS" : quadruped_transfer_dict2,
-    "Hopper Hop Transfer AutoEnt 2x256HS" : hopper_transfer_dict2
+    "Walker Run Transfer AutoEnt 2x256HS": walker_transfer_dict2,
+    "Quadruped Run Transfer AutoEnt 2x256HS": quadruped_transfer_dict2,
+    "Hopper Hop Transfer AutoEnt 2x256HS": hopper_transfer_dict2
 }
 
 to_plot_transfer_dict3 = {
-    "Walker Run Transfer AutoEnt 1x32HS" : walker_transfer_dict3,
-    "Quadruped Run Transfer AutoEnt 1x32HS" : quadruped_transfer_dict3,
+    "Walker Run Transfer AutoEnt 1x32HS": walker_transfer_dict3,
+    "Quadruped Run Transfer AutoEnt 1x32HS": quadruped_transfer_dict3,
     #"Hopper Hop Transfer AutoEnt 1x32HS" : hopper_transfer_dict3
 }
 
@@ -674,19 +760,19 @@ to_plot_dict = {
 }
 
 to_plot_dict2 = {
-        "Walker Walk 256BS 1x32HS" : walker_walk_base_dict2,
-        "Walker Run 256BS 1x32HS" : walker_run_base_dict2,
-        "Quadruped Walk 256BS 1x32HS" : quadruped_walk_base_dict2,
-        "Quadruped Run 256BS 1x32HS" : quadruped_run_base_dict2,
-        "Hopper Stand 256BS 1x32HS" : hopper_stand_base_dict2,
-        "Hopper Hop 256BS 1x32HS" : hopper_hop_base_dict2
+        "Walker Walk 256BS 1x32HS": walker_walk_base_dict2,
+        "Walker Run 256BS 1x32HS": walker_run_base_dict2,
+        "Quadruped Walk 256BS 1x32HS": quadruped_walk_base_dict2,
+        "Quadruped Run 256BS 1x32HS": quadruped_run_base_dict2,
+        "Hopper Stand 256BS 1x32HS": hopper_stand_base_dict2,
+        "Hopper Hop 256BS 1x32HS": hopper_hop_base_dict2
     }
 
 to_plot_dict3 = {
-    "Quadruped Walk 256BS 2x256HS" : quadruped_walk_base_dict3,
-    "Quadruped Run 256BS 2x256HS" : quadruped_run_base_dict3,
-    "Hopper Stand 256BS 2x256HS" : hopper_stand_base_dict3,
-    "Hopper Hop 256BS 2x256HS" : hopper_hop_base_dict3
+    "Quadruped Walk 256BS 2x256HS": quadruped_walk_base_dict3,
+    "Quadruped Run 256BS 2x256HS": quadruped_run_base_dict3,
+    "Hopper Stand 256BS 2x256HS": hopper_stand_base_dict3,
+    "Hopper Hop 256BS 2x256HS": hopper_hop_base_dict3
 }
 
 to_plot_dict4 = {
@@ -713,16 +799,20 @@ to_plot_dict5 = {
     "Cheetah Run AutoEnt 256BS 1x32 HS" : cheetah_run_base_dict5
 }
 
-to_plot_g1g2 = {
-    "Walker Walk G1 vs. G2 1x32 HS" : walker_walk_g2
+to_plot_g2_2x256 = {
+    "Walker Walk SAC vs. G1 vs. G2 2x256 HS" : walker_walk_g2_2x256,
+    # "Walker Run SAC vs. G1 vs. G2 2x256 HS": walker_run_g2_2x256,
+    # "Cheetah Run SAC vs. G1 vs. G2 2x256 HS": cheetah_run_g2_2x256,
+    # "Humanoid Walk SAC vs. G1 vs. G2 2x256 HS": humanoid_walk_g2_2x256
+    # "Humanoid Run SAC vs. G1 vs. G2 2x256 HS": humanoid_run_g2_2x256
 }
 
 if __name__ == "__main__":
     # Specify the folder we want to save the visualizations to
     base_rew_dir = "reward_plots_new/"
     base_logscale_dir = "log_scale_plots_new/"
-    for env in to_plot_g1g2.keys():
-        env_exp_dict = to_plot_g1g2[env]
+    for env in to_plot_g2_2x256.keys():
+        env_exp_dict = to_plot_g2_2x256[env]
         print("Visualizing ", env)
         plot_rewards(env_exp_dict, base_rew_dir, REWARD_KEY)
         #plot_rewards(env_exp_dict, base_logscale_dir, LOG_SCALE_KEY)

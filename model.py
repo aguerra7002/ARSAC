@@ -369,11 +369,15 @@ class GaussianPolicy2(nn.Module):
         # How far back we look with the phi network
         self.action_lookback = action_lookback
         # This will be our prior network
-        if action_lookback > 0:
+        if action_lookback == 0:
+            self.linear_phi_1 = nn.Linear(num_inputs, hidden_dim) # SAC with state prior.
+        else:
             self.linear_phi_1 = nn.Linear(num_actions * action_lookback, hidden_dim)
-            self.linear_phi_2 = nn.Linear(hidden_dim, hidden_dim)
-            self.log_std_linear_phi = nn.Linear(hidden_dim, num_actions)
-            self.mean_linear_phi = nn.Linear(hidden_dim, num_actions)
+
+        self.linear_phi_2 = nn.Linear(hidden_dim, hidden_dim)
+        self.log_std_linear_phi = nn.Linear(hidden_dim, num_actions)
+        self.mean_linear_phi = nn.Linear(hidden_dim, num_actions)
+
 
         self.apply(weights_init_)
         # Will make the initial adjustment close to 0 (to avoid large KLs)
@@ -468,12 +472,11 @@ class GaussianPolicy2(nn.Module):
         return mean, log_std
 
     def sample(self, state, prev_states, prev_actions, return_distribution=False, random_base=False, uniform_weight=0):
-
-        if self.action_lookback == 0:
-            print("Don't run this without action lookback")
-            return 0
         # Generate our prior
-        mean, log_std = self.forward_phi(prev_actions)
+        if self.action_lookback == 0: # SAC with state-prior for baseline
+            mean, log_std = self.forward_phi(state)
+        else:
+            mean, log_std = self.forward_phi(prev_actions)
         prior_dist = Normal(mean, log_std.exp())
         # sampled_action = prior_dist.rsample()
 
@@ -541,7 +544,7 @@ class GaussianPolicy2(nn.Module):
         # kl_div2 = log_prob_base - log_prob_prior
         if return_distribution:
             return action_ret, kl_div, mean_ret.detach(), mean, \
-                   log_std.exp(), sigma_mean.detach(), delta_mean.detach() #delta_log_std.exp().detach()
+                   log_std.exp(), sigma_mean.detach(), delta_log_std.exp().detach() #delta_mean.detach()
         else:
             return action_ret, kl_div, mean_ret.detach()
 
