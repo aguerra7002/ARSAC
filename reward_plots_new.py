@@ -737,6 +737,50 @@ humanoid_run_g2_2x256 ={
                  "dc13f9dfad714ced8114b2a94461da39"]
 }
 
+humanoid_run_g2_2x256_kls = {
+    "0.001": ["dcd1720d723c437b8e7d696d0c3294d8",
+              "2ec24c1d22b14b9eb4cd3864e326ed3b",
+              "8baaeddb5f204d96910f863c3e7d58e5",
+              "949d6c435f524a1bb9249a9741fd8f0a",
+              "dc13f9dfad714ced8114b2a94461da39"],
+    "0.0001": ["57d3fb4fc2094e8da08969978923cb02",
+               "504c6cc33bc64ea393540c07365a5f34",
+               "a1148cddbdd946079e393964406dba7c",
+               "be80ca3f0f2245b68a7bb6b4d965cb17",
+               "d35ad8b7a09a4239af692e70c649b625"],
+    "0.0": ["ebc7bc7659dc40b4983b3685ea96fe33",
+            "e2ce45f5267d4d5b9a0b0ac4872d8539",
+            "8847f818f36d48d1887293df80ac6475",
+            "4dc170c7ab7c438eb5d4581a3139ddc7",
+            "a64c77bdfac84c61b831303693e66fba"]
+}
+
+quadruped_walk_g2_2x256_kls = {
+    "0.0001": ["5d0d71a4214546e9bd4124ccac5fa7b4",
+               "f6d384d9865948f2aaf5d7203e4c1246",
+               "16b4190053c94ec2a6ffb7a32f95f768",
+               "8ab94a6f202e497084eac4b5d6117922",
+               "af3681f7d91a4922b2f1b1d997325363"],
+    "0.0": ["f7e6133d8a5e4fbd864378077cf39013",
+            "3030f39349784a7abfb481d24be3402f",
+            "068cbb28fa5d4499a6793bffb648152a",
+            "1a13eb16801b407985999e6a6990b0ca",
+            "11333cd3db0c476885a34bd4c6c85baa"]
+}
+
+quadruped_run_g2_2x256_kls = {
+    "0.0001": ["8feb2cc42a1c479087cb708b2a9a94e4",
+               "dfe6b119e2a148ed8bbd2bb008f896a0",
+               "e326f74f9bc54c86b8c16cadb76029b6",
+               "92f4910250c3449ca0bd85b4fb515b6c",
+               "65e83f710e9848e6bec3dfa9962d038a"],
+    "0.0": ["bd1381c667ee442aac4590750b9aabe2",
+            "d78512916e264dadbf71d38134b235b0",
+            "b7ac30c82b4248f1b33ff27568488ca9",
+            "ad0ec064cd3742929f9244a72c5c84dc",
+            "d6a705b25f114e98a21136f2f401e0dc"]
+}
+
 to_plot_transfer_dict2 = {
     "Walker Run Transfer AutoEnt 2x256HS": walker_transfer_dict2,
     "Quadruped Run Transfer AutoEnt 2x256HS": quadruped_transfer_dict2,
