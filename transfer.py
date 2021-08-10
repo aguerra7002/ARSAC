@@ -8,7 +8,7 @@ import itertools
 import json
 import torch
 from arrl import ARRL
-from replay_buffer import ReplayBuffer
+from replay_buffers import ReplayBuffer
 from pixelstate import PixelState
 from env_wrapper import EnvWrapper
 import time

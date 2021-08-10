@@ -357,8 +357,10 @@ class GaussianPolicy2(nn.Module):
         self.hidden_dim_base = hidden_dim_base
         # This will take in the state along with the action prior
         self.linear_theta_1 = nn.Linear(num_inputs + 2 * num_actions, hidden_dim_base)
+        self.layer_norm_theta_1 = nn.LayerNorm(hidden_dim_base)
         if hidden_dim_base == 256:
             self.linear_theta_2 = nn.Linear(hidden_dim_base, hidden_dim_base)
+            self.layer_norm_theta_2 = nn.LayerNorm(hidden_dim_base)
         self.delta_mean_linear_theta = nn.Linear(hidden_dim_base, num_actions)
         self.sigma_mean_linear_theta = nn.Linear(hidden_dim_base, num_actions)
         self.delta_std_linear_theta = nn.Linear(hidden_dim_base, num_actions)
@@ -373,8 +375,9 @@ class GaussianPolicy2(nn.Module):
             self.linear_phi_1 = nn.Linear(num_inputs, hidden_dim) # SAC with state prior.
         else:
             self.linear_phi_1 = nn.Linear(num_actions * action_lookback, hidden_dim)
-
+        self.layer_norm_phi_1 = nn.LayerNorm(hidden_dim)
         self.linear_phi_2 = nn.Linear(hidden_dim, hidden_dim)
+        self.layer_norm_phi_2 = nn.LayerNorm(hidden_dim)
         self.log_std_linear_phi = nn.Linear(hidden_dim, num_actions)
         self.mean_linear_phi = nn.Linear(hidden_dim, num_actions)
 
@@ -440,9 +443,9 @@ class GaussianPolicy2(nn.Module):
 
         inp = torch.cat((state, prior_mean, prior_log_std), 1)
 
-        x = F.relu(self.linear_theta_1(inp))
+        x = F.relu(self.layer_norm_theta_1(self.linear_theta_1(inp)))
         if self.hidden_dim_base == 256:
-            x = F.relu(self.linear_theta_2(x))
+            x = F.relu(self.layer_norm_theta_2(self.linear_theta_2(x)))
         delta_mean = self.delta_mean_linear_theta(x)
         sigma_mean = self.sigma_mean_linear_theta(x)
         delta_log_std = self.delta_std_linear_theta(x)
@@ -460,8 +463,8 @@ class GaussianPolicy2(nn.Module):
     def forward_phi(self, prev_actions):
 
         inp = prev_actions[:, -self.action_space_size * self.action_lookback:]
-        x = F.relu(self.linear_phi_1(inp))
-        x = F.relu(self.linear_phi_2(x))
+        x = F.relu(self.layer_norm_phi_1(self.linear_phi_1(inp)))
+        x = F.relu(self.layer_norm_phi_2(self.linear_phi_2(x)))
 
         mean = self.mean_linear_phi(x)
         log_std = self.log_std_linear_phi(x)

@@ -332,7 +332,9 @@ class ARRL(object):
         return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), ent_loss.item(), alpha_tlogs.item()
 
     # Save model parameters
-    def save_model(self, env_name, suffix="", actor_path=None, critic_path=None):
+    def save_model(self, env_name, suffix="", actor_path=None, critic_path=None,
+                   ar_optim_path=None, base_optim_path=None, policy_optim_path=None):
+
         if not os.path.exists('models/'):
             os.makedirs('models/')
 
@@ -340,12 +342,22 @@ class ARRL(object):
             actor_path = "models/sac_actor_{}_{}".format(env_name, suffix)
         if critic_path is None:
             critic_path = "models/sac_critic_{}_{}".format(env_name, suffix)
+
+        # Save the optimizers
+        if ar_optim_path is not None and self.policy_type == "Gaussian2":
+            torch.save(self.ar_optim.state_dict(), ar_optim_path)
+        if base_optim_path is not None and self.policy_type == "Gaussian2":
+            torch.save(self.base_optim.state_dict(), base_optim_path)
+        if policy_optim_path is not None and self.policy_type == "Gaussian":
+            torch.save(self.policy_optim.state_dict(), policy_optim_path)
+
         #print('Saving models to {} and {}'.format(actor_path, critic_path))
         torch.save(self.policy.state_dict(), actor_path)
         torch.save(self.critic.state_dict(), critic_path)
 
     # Load model parameters
-    def load_model(self, actor_path, critic_path, flow_only=False, base_only=False):
+    def load_model(self, actor_path, critic_path, flow_only=False, base_only=False,
+                   ar_optim_path=None, base_optim_path=None, policy_optim_path=None):
         print('Loading models from {} and {}'.format(actor_path, critic_path))
         if actor_path is not None:
             loaded_dict = torch.load(actor_path)
@@ -367,3 +379,11 @@ class ARRL(object):
                 self.policy.load_state_dict(loaded_dict)
         if critic_path is not None:
             self.critic.load_state_dict(torch.load(critic_path))
+
+        # Load the optimizers as well
+        if ar_optim_path is not None and self.policy_type == "Gaussian2":
+            self.ar_optim.load_state_dict(torch.load(ar_optim_path))
+        if  base_optim_path is not None and self.policy_type == "Gaussian2":
+            self.base_optim.load_state_dict(torch.load(base_optim_path))
+        if policy_optim_path is not None and self.policy_type == "Gaussian":
+            self.policy_optim.load_state_dict(torch.load(policy_optim_path))

@@ -34,7 +34,7 @@ parser.add_argument('--kl_constraint', type=float, default=0.001, metavar='G', #
                     help='encourages the optimizer to have a KL near this value.')
 parser.add_argument('--automatic_entropy_tuning', type=bool, default=True, metavar='G',
                     help='Automatically adjust α (default: False)')
-parser.add_argument('--restrict_policy_deviation', type=float, default=0.1, metavar='G',
+parser.add_argument('--restrict_policy_deviation', type=float, default=0.0, metavar='G',
                     help='Add a kl_div term to the policy loss to prevent the policy from changing too much over training.')
 ################ Specific to ARSAC ####################
 parser.add_argument('--use_gated_transform', type=bool, default=False, metavar='G',
@@ -347,9 +347,24 @@ with experiment.train():
                     evl = str(int(total_numsteps / args.eval_steps))
                     act_path = "models/actor_eval_" + evl + ".model"
                     crt_path = "models/critic_eval_" + evl + ".model"
-                    agent.save_model(args.env_name, actor_path=act_path, critic_path=crt_path)
+                    if args.policy == "Gaussian2":
+                        ar_optim_path = "optimizers/ar_optim_eval_" + evl + ".model"
+                        base_optim_path = "optimizers/base_optim_eval_" + evl + ".model"
+                        agent.save_model(args.env_name, actor_path=act_path, critic_path=crt_path,
+                                         ar_optim_path=ar_optim_path, base_optim_path=base_optim_path)
+                        experiment.log_asset(ar_optim_path)
+                        experiment.log_asset(base_optim_path)
+                    elif args.policy == "Gaussian":
+                        policy_optim_path = "optimizers/policy_optim_eval_" + evl + ".model"
+                        agent.save_model(args.env_name, actor_path=act_path, critic_path=crt_path,
+                                         policy_optim_path=policy_optim_path)
+                        experiment.log_asset(policy_optim_path)
+
                     experiment.log_asset(act_path)
                     experiment.log_asset(crt_path)
+                    # Save the optimizers as well
+                    experiment.log_asset(ar_optim_path)
+                    experiment.log_asset(base_optim_path)
                 # for item_str in episode_eval_dict.keys():
                 #     item = episode_eval_dict[item_str]
                 #     json_str = json.dumps(item, separators=(",", ":"), ensure_ascii=False).encode('utf8')
@@ -398,9 +413,21 @@ with experiment.train():
             break
 
 # Save the final model before finishing program
-agent.save_model(args.env_name,
-                 actor_path="models/actor.model",
-                 critic_path="models/critic.model")
+if args.policy == "Gaussian2":
+    agent.save_model(args.env_name,
+                     actor_path="models/actor.model",
+                     critic_path="models/critic.model",
+                     ar_optim_path="optimizers/ar_optim.model",
+                     base_optim_path="optimizers/base_optim.model")
+    experiment.log_asset("optimizers/ar_optim.model")
+    experiment.log_asset("optimizers/base_optim.model")
+
+elif args.policy == "Gaussian":
+    agent.save_model(args.env_name,
+                     actor_path="models/actor.model",
+                     critic_path="models/critic.model",
+                     policy_optim_path="optimizers/policy_optim.model")
+    experiment.log_asset("optimizers/policy_optim.model")
 
 # Log the models to comet in case we want to use them later.
 experiment.log_asset("models/actor.model")
