@@ -67,7 +67,7 @@ class EnvWrapper:
             if self.pixel_based:
                 return np.concatenate((self.env.physics.data.qpos, self.env.physics.data.qvel))
             elif position_only:
-                return self.env.physics.qpos
+                return self.env.physics.data.qpos
             # The flatten argument does not matter here, only for gym environments
             else:
                 return temp_state

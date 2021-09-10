@@ -8,7 +8,7 @@ import itertools
 import json
 import torch
 from arrl import ARRL
-from replay_buffers import ReplayBuffer
+from replay_buffer import ReplayBuffer
 from pixelstate import PixelState
 from env_wrapper import EnvWrapper
 import time
@@ -21,32 +21,43 @@ project_name = 'arsac-test'
 comet_api = API(api_key=api_key)
 
 # PUT THE NAME OF THE FILE WE WANT TO SAVE HERE
-actor_filename = "actor_eval_205.model"
+actor_filename = "actor.model"
 critic_filename = "critic.model"
+ar_optim_filename = "ar_optim.model"
+base_optim_filename = "base_optim.model"
 
 parser = argparse.ArgumentParser(description='PyTorch AutoRegressiveFlows-RL Args')
 # Once we get Mujoco then we will use this one
-parser.add_argument('--experiment_id', default="66b15720c86f49a7ba235fe95afba25e",
+parser.add_argument('--experiment_id', default="f127078dbe9f43689d3faa2988633ec6",
                     help='Experiment ID we want to transfer our experiment from')
 parser.add_argument('--task-name', default="run",
                     help='Transfer task')
-parser.add_argument('--transfer_flow', default=True,
+parser.add_argument('--transfer_flow', default=False,
                     help="Determines whether or not we transfer the flow network")
 parser.add_argument('--transfer_base', default=False,
                     help="Determines whether or not we transfer the base network")
 parser.add_argument('--transfer_critic', default=False,
                     help="Determines whether or not we transfer the critic network")
+parser.add_argument('--transfer_ar_optim', default=False,
+                    help="Determines whether or not we transfer the autoregressive optimizer")
+parser.add_argument('--transfer_base_optim', default=False,
+                   help='Determines whether or not we transfer the base optimizer')
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
 parser.add_argument('--num_steps', type=int, default=3000000, metavar='N',
                     help='maximum number of steps (default: 3000000)')
-parser.add_argument('--start_steps', type=int, default=10000, metavar='N',
+parser.add_argument('--start_steps', type=int, default=256, metavar='N',
                     help='Number of steps we take to fill the replay buffer.')
-parser.add_argument('--freeze_steps', type=int, default=0, metavar='N',
-                    help='number of steps we run without updating the flow network')
+# parser.add_argument('--freeze_steps', type=int, default=0, metavar='N',
+#                     help='number of steps we run without updating the flow network')
 parser.add_argument('--rbo_increase_factor', type=float, default=1.003, metavar='N',
                     help='determines how much we increase the restrict_base_output parameter after each episode.')
-parser.add_argument('--cuda', action="store_true", default=False,
+parser.add_argument('--position_only', default=False,
+                    help='whether to only use positions in the state')
+parser.add_argument('')
+parser.add_argument('--transfer_loss', default=1.0,
+                    help='How much we encourage the untrained prior to follow the expert prior.')
+parser.add_argument('--cuda', action="store_true", default=True,
                     help='run on CUDA (default: False)')
 parser.add_argument('--device_id', type=int, default=0, metavar='G',
                     help='Which GPU to run on')
@@ -89,6 +100,10 @@ state_space_size = env.get_state_space_size(position_only=args.position_only)
 
 # Now initialize the agent
 agent = ARRL(state_space_size, env.action_space, args)
+agent.set_transfer_loss(args.transfer_loss)
+
+# Initialize our expert as well
+expert = ARRL(state_space_size, env.action_space, args)
 
 # Here is the transfer component. For now, we only transfer the actor.
 actor_asset_id = [x for x in asset_list if actor_filename == x['fileName']][0]['assetId']
@@ -97,18 +112,37 @@ act_path = 'tmploaded/actor.model'
 with open(act_path, 'wb+') as f:
     f.write(actor)
 
+ar_optim = None
+ar_optim_path = None
+if args.transfer_ar_optim:
+    ar_optim_asset_id = [x for x in asset_list if ar_optim_filename == x['fileName']][0]['assetId']
+    ar_optim = base_experiment.get_asset(ar_optim_asset_id)
+    ar_optim_path = 'tmploaded/ar_optim.model'
+    with open(ar_optim_path, 'wb+') as f:
+        f.write(ar_optim)
+
+base_optim_path = None
+if args.transfer_base_optim:
+    base_optim_asset_id = [x for x in asset_list if base_optim_filename == x['fileName']][0]['assetId']
+    base_optim = base_experiment.get_asset(base_optim_asset_id)
+    base_optim_path = 'tmploaded/base_optim.model'
+    with open(base_optim_path, 'wb+') as f:
+        f.write(base_optim)
+
+crt_path = None
 if args.transfer_critic:
     crt_path = 'tmploaded/critic.model'
     critic_asset_id = [x for x in asset_list if critic_filename == x['fileName']][0]['assetId']
     critic = base_experiment.get_asset(critic_asset_id)
     with open(crt_path, 'wb+') as f:
         f.write(critic)
-    agent.load_model(act_path, crt_path, flow_only=args.transfer_flow, base_only=args.transfer_base)
-else:
-    agent.load_model(act_path, None, flow_only=args.transfer_flow, base_only=args.transfer_base)
 
-if args.freeze_steps > 0:
-    agent.require_flow_grad(False) # This will freeze the flow network
+# Load the expert with the trained model.
+expert.load_model(act_path, crt_path, flow_only=args.transfer_flow, base_only=args.transfer_base,
+                 base_optim_path=base_optim_path, ar_optim_path=ar_optim_path)
+
+# if args.freeze_steps > 0:
+#     agent.require_flow_grad(False) # This will freeze the flow network
 
 # Comet logging. Note we are starting a new experiment now
 experiment = Experiment(api_key=api_key,
@@ -179,17 +213,21 @@ with experiment.train():
             # prev_time = time.time()
 
             # Unfreeze the flow network if we are past the number of freeze steps
-            if total_numsteps == args.start_steps + args.freeze_steps + 1:
-                agent.require_flow_grad(True)
+            # if total_numsteps == args.start_steps + args.freeze_steps + 1:
+            #     agent.require_flow_grad(True)
+            freeze_flow = args.start_steps + args.freeze_steps >= total_numsteps
 
             if len(memory) > args.start_steps: #args.batch_size * :
                 # Number of updates per step in environment
                 for i in range(args.updates_per_step):
                     # Update parameters of all the networks
-                    # print("update params:")  # TODO: Remove later
-                    # What we had before
+                    c1l, c2l, p_loss, e_loss, alpha = agent.update_parameters(memory,
+                                                                              args.batch_size,
+                                                                              updates,
+                                                                              restrict_base_output=rbo,
+                                                                              freeze_flow=freeze_flow,
+                                                                              expert=expert)
 
-                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates, restrict_base_output=rbo)
                     # print("Entropy Parameter", alpha)
                     # Log to Comet.ml
                     # experiment.log_metric("Critic_1_Loss", critic_1_loss, step=updates)

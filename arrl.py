@@ -17,6 +17,7 @@ if PROFILING:
 # How often we update the copy of the policy: TODO: Make this a command-line argument
 UPDATE_POLICY_STEP = 1000
 
+
 class ARRL(object):
     def __init__(self, num_inputs, action_space, args):
 
@@ -45,7 +46,7 @@ class ARRL(object):
 
         if args.pixel_based:
             self.state_getter = PixelState(1, args.env_name, args.task_name, args.resolution, num_inputs)
-            self.critic = ConvQNetwork(3, self.state_lookback_critic, # 3 channels
+            self.critic = ConvQNetwork(3, self.state_lookback_critic,  # 3 channels
                                        action_space.shape[0], self.action_lookback_critic,
                                        args.hidden_size).to(device=self.device)
         else:
@@ -56,12 +57,12 @@ class ARRL(object):
 
         if args.pixel_based:
             self.critic_target = ConvQNetwork(3, self.state_lookback_critic,
-                                       action_space.shape[0], self.action_lookback_critic,
-                                       args.hidden_size).to(device=self.device)
+                                              action_space.shape[0], self.action_lookback_critic,
+                                              args.hidden_size).to(device=self.device)
         else:
             self.critic_target = QNetwork(num_inputs, self.state_lookback_critic,
-                                   action_space.shape[0], self.action_lookback_critic,
-                                   args.hidden_size).to(device=self.device)
+                                          action_space.shape[0], self.action_lookback_critic,
+                                          args.hidden_size).to(device=self.device)
         hard_update(self.critic_target, self.critic)
 
         if self.policy_type == "Gaussian":
@@ -72,22 +73,25 @@ class ARRL(object):
                 self.alpha_optim = Adam([self.log_alpha], lr=args.lr)
 
             self.policy = GaussianPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space,
-                                         self.action_lookback_actor, self.state_lookback_actor, self.use_gated_transform,
+                                         self.action_lookback_actor, self.state_lookback_actor,
+                                         self.use_gated_transform,
                                          self.ignore_scale, args.hidden_dim_base, args.pixel_based).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
         elif self.policy_type == "Gaussian2":
             if self.automatic_entropy_tuning:
                 self.target_entropy = torch.Tensor((args.kl_constraint,)).item()
-                #self.target_entropy = (1. + float(np.log(2))) * torch.prod(torch.Tensor(action_space.shape).to(self.device)).item()
+                # self.target_entropy = (1. + float(np.log(2))) * torch.prod(torch.Tensor(action_space.shape).to(self.device)).item()
                 self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
                 self.alpha_optim = Adam([self.log_alpha], lr=args.lr)
-
+                # For adjusting target kl with old policy
                 self.log_beta = torch.zeros(1, requires_grad=True, device=self.device)
-                self.beta_optim = Adam([self.log_alpha], lr=args.lr) # Initialize same as alpha bc why not?
+                self.beta_optim = Adam([self.log_alpha], lr=args.lr)  # Initialize same as alpha bc why not?
+                # For adjusting KL versus expert
+
 
             self.policy = GaussianPolicy2(num_inputs, action_space.shape[0], args.hidden_size, action_space,
-                                         self.action_lookback_actor, args.hidden_dim_base).to(self.device)
+                                          self.action_lookback_actor, args.hidden_dim_base).to(self.device)
             # This is what we will update every 500 steps in order to not allow our policy to change too much from this.
             if self.restrict_policy_deviation > 0:
                 self.policy_old = copy.deepcopy(self.policy)
@@ -101,18 +105,21 @@ class ARRL(object):
 
             self.policy_optim = Adam([{"params": base_params},
                                       {"params": ar_params, "lr": args.lr_ar}],
-                                     lr = args.lr)
+                                     lr=args.lr)
 
             # Create 2 separate optimizers, one for AR component and one for base.
             # This gives us more flexibility in our optimization.
             self.base_optim = Adam(base_params, lr=args.lr)
             self.ar_optim = Adam(ar_params, lr=args.lr_ar)
+
+            # For transfer loss
+            self.transfer_loss = 0.0
         else:
             print("Shouldn't be here")
             exit(0)
 
-
-    def select_action(self, state, prev_states=None, prev_actions=None, eval=False, return_distribution=False, random_base=False, return_prob=False):
+    def select_action(self, state, prev_states=None, prev_actions=None, eval=False, return_distribution=False,
+                      random_base=False, return_prob=False):
 
         state = torch.FloatTensor(state).to(self.device).unsqueeze_(0)
 
@@ -124,22 +131,27 @@ class ARRL(object):
         if not eval:
             if return_distribution:
                 # We pick an action based off a gaussian policy to encourage the model to explore
-                action, log_prob, _, bmean, bstd, ascle, ashft = self.policy.sample(state, prev_states, prev_actions,
-                                                                             return_distribution=True, random_base=random_base)
+                action, log_prob, _, bmean, bstd, (ascle, tmp1), (tmp2, ashft) = self.policy.sample(state, prev_states,
+                                                                                                    prev_actions,
+                                                                                                    return_distribution=True,
+                                                                                                    random_base=random_base)
             else:
                 # We pick an action based off a gaussian policy to encourage the model to explore
                 action, log_prob, _ = self.policy.sample(state, prev_states, prev_actions, random_base=random_base)
         else:
             if return_distribution:
-                _, log_prob, action, bmean, bstd, ascle, ashft = self.policy.sample(state, prev_states, prev_actions,
-                                                                             return_distribution=True, random_base=random_base)
+                _, log_prob, action, bmean, bstd, (ascle, tmp1), (tmp2, ashft) = self.policy.sample(state, prev_states, prev_actions,
+                                                                                                    return_distribution=True,
+                                                                                                    random_base=random_base)
             else:
                 _, log_prob, action = self.policy.sample(state, prev_states, prev_actions, random_base=random_base)
 
         if return_prob and return_distribution:
-            return self.to_numpy(action), self.to_numpy(bmean), self.to_numpy(bstd), self.to_numpy(ascle), self.to_numpy(ashft), log_prob
+            return self.to_numpy(action), self.to_numpy(bmean), self.to_numpy(bstd), self.to_numpy(
+                ascle), self.to_numpy(ashft), log_prob
         elif return_distribution:
-            return self.to_numpy(action), self.to_numpy(bmean), self.to_numpy(bstd), self.to_numpy(ascle), self.to_numpy(ashft)
+            return self.to_numpy(action), self.to_numpy(bmean), self.to_numpy(bstd), self.to_numpy(
+                ascle), self.to_numpy(ashft)
         else:
             return action.detach().cpu().numpy()[0]
 
@@ -151,8 +163,8 @@ class ARRL(object):
             if "phi" in name:
                 param.requires_grad = requires_grad
 
-
-    def update_parameters(self, memory, batch_size, updates, restrict_base_output=0.0, step=None):
+    def update_parameters(self, memory, batch_size, updates, restrict_base_output=0.0, step=None, freeze_flow=False,
+                          expert=None):
         # Sample a batch from memory
         if PROFILING:
             print("update parameters")
@@ -183,7 +195,8 @@ class ARRL(object):
 
         if None not in prev_action_batch:
             # Same as with states, need to compute the prev_next_action_batch
-            prev_next_action_batch = np.concatenate((prev_action_batch[:, self.action_space_size:], action_batch), axis=1)
+            prev_next_action_batch = np.concatenate((prev_action_batch[:, self.action_space_size:], action_batch),
+                                                    axis=1)
             prev_next_action_batch = torch.cuda.FloatTensor(prev_next_action_batch)
             prev_action_batch = torch.cuda.FloatTensor(prev_action_batch).to(self.device)
 
@@ -197,10 +210,9 @@ class ARRL(object):
             print("\tSetup:", time.time() - prev_time)
             prev_time = time.time()
         # Anneal the uniform weight parameter
-        uw = 0#(memory.percent_remaining() * 1) ** 2
         with torch.no_grad():
             next_state_action, next_state_log_pi, _ = \
-                self.policy.sample(next_state_batch, prev_next_state_batch, prev_next_action_batch, uniform_weight=uw)
+                self.policy.sample(next_state_batch, prev_next_state_batch, prev_next_action_batch)
             qf1_next_target, qf2_next_target = self.critic_target(next_state_batch, next_state_action,
                                                                   prev_next_state_batch, prev_next_action_batch)
             min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi[0]
@@ -214,16 +226,17 @@ class ARRL(object):
         qf1, qf2 = self.critic(state_batch, action_batch, prev_state_batch, prev_action_batch)
 
         qf1_loss = F.mse_loss(qf1, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
-        qf2_loss = F.mse_loss(qf2, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
+        qf2_loss = F.mse_loss(qf2, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q2(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
 
         qf_loss = qf1_loss + qf2_loss
         self.critic_optim.zero_grad()
         qf_loss.backward()
         self.critic_optim.step()
 
-        sampled_action_batch, log_pi, _, policy_mean, policy_std, sigma_mean, delta_mean = \
+        sampled_action_batch, log_pi, _, policy_mean, policy_std, policy_dist = \
             self.policy.sample(state_batch, prev_state_batch, prev_action_batch,
-                               return_distribution=True, uniform_weight=uw)
+                               return_policy=True)
+        prior_current = Normal(policy_mean, policy_std)
         # sampled_action_batch should be detached from the prior.
 
         qf1_pi, qf2_pi = self.critic(state_batch, sampled_action_batch, prev_state_batch, prev_action_batch)
@@ -241,9 +254,8 @@ class ARRL(object):
             # Here we do the same thing with the old policy so that we can adjust the lost accordingly
             _, _, _, policy_mean_old, policy_std_old, _, _ = \
                 self.policy_old.sample(state_batch, prev_state_batch, prev_action_batch,
-                                       return_distribution=True, uniform_weight=uw)
+                                       return_distribution=True)
 
-            prior_current = Normal(policy_mean, policy_std)
             prior_old = Normal(policy_mean_old.detach(), policy_std_old.detach())
             kl_div_from_old = torch.distributions.kl_divergence(prior_current, prior_old).mean()
             ent_loss += kl_div_from_old * self.restrict_policy_deviation
@@ -270,6 +282,23 @@ class ARRL(object):
         #     norms = torch.norm(torch.log(sigma_mean), dim=1, p=norm_type).mean() + torch.norm(delta_mean, dim=1, p=norm_type).mean()
         #     policy_loss += norms * restrict_base_output
 
+        # Here is where we add our transfer loss
+        if self.transfer_loss > 0 and expert is not None:
+            prior_expert = expert.policy.generate_prior(prev_action_batch)
+            # Method 1. Try enforcing a constraint on the prior
+            # expert_prior_kl = torch.distributions.kl_divergence(prior_expert, prior_current).mean()
+            # ent_loss += self.transfer_loss * expert_prior_kl # TODO: Get rid of transfer loss parameter, use beta instead.
+
+            expert_policy_kl = torch.distributions.kl_divergence(prior_expert, policy_dist).mean()
+            policy_loss += self.transfer_loss * expert_policy_kl
+            # Try adding a loss term to the policy as well? idk
+            # Ensure that beta is tuned to reduce
+            # if self.automatic_entropy_tuning:
+            #     beta_loss = (self.log_beta.exp() * expert_kl.detach())
+            #     self.beta_optim.zero_grad()
+            #     beta_loss.backward()
+            #     self.beta_optim.step()
+
         # Finally we update the policy
         if self.policy_type == "Gaussian":
             self.policy_optim.zero_grad()
@@ -279,15 +308,10 @@ class ARRL(object):
         elif self.policy_type == "Gaussian2":
 
             # Update the AR component based on KL loss (called ent_loss here)
-            self.ar_optim.zero_grad()
-            ent_loss.backward(retain_graph=True)
-            self.ar_optim.step()
-            # self.ar_optim.zero_grad()
-
-            # Should print all 0's
-            # for name, param in self.policy.named_parameters():
-            #     if "theta" in name:
-            #         print(name, param.grad)
+            if not freeze_flow:
+                self.ar_optim.zero_grad()
+                ent_loss.backward(retain_graph=True)
+                self.ar_optim.step()
 
             # Update the state-action network based on standard policy loss
             self.base_optim.zero_grad()
@@ -299,13 +323,11 @@ class ARRL(object):
             #     if "phi" in name:
             #         print(name, param.grad)
 
-
-
         if PROFILING:
             print("\tCritic Loss:", time.time() - prev_time)
             prev_time = time.time()
         if self.automatic_entropy_tuning:
-            #print(torch.min(log_pi).item(), torch.max(log_pi).item(), torch.mean(log_pi).item())
+            # print(torch.min(log_pi).item(), torch.max(log_pi).item(), torch.mean(log_pi).item())
             alpha_loss = (self.log_alpha.exp() * (log_pi[0] - self.target_entropy).detach()).mean()
 
             self.alpha_optim.zero_grad()
@@ -331,6 +353,9 @@ class ARRL(object):
 
         return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), ent_loss.item(), alpha_tlogs.item()
 
+    def set_transfer_loss(self, tl):
+        self.transfer_loss = tl
+
     # Save model parameters
     def save_model(self, env_name, suffix="", actor_path=None, critic_path=None,
                    ar_optim_path=None, base_optim_path=None, policy_optim_path=None):
@@ -351,7 +376,7 @@ class ARRL(object):
         if policy_optim_path is not None and self.policy_type == "Gaussian":
             torch.save(self.policy_optim.state_dict(), policy_optim_path)
 
-        #print('Saving models to {} and {}'.format(actor_path, critic_path))
+        # print('Saving models to {} and {}'.format(actor_path, critic_path))
         torch.save(self.policy.state_dict(), actor_path)
         torch.save(self.critic.state_dict(), critic_path)
 
@@ -368,22 +393,25 @@ class ARRL(object):
                     if "phi" in key and flow_only:
                         if key in loaded_dict.keys():
                             self.policy.state_dict()[key] = loaded_dict[key]
+                            print("Transfer", key)
                         else:
                             print("Uh-oh: Key", key, "not found in the loaded dict.")
                     if "theta" in key and base_only:
                         if key in loaded_dict.keys():
                             self.policy.state_dict()[key] = loaded_dict[key]
+                            print("Transfer", key)
                         else:
                             print("Uh-oh: Key", key, "not found in the loaded dict.")
             else:
                 self.policy.load_state_dict(loaded_dict)
+
         if critic_path is not None:
             self.critic.load_state_dict(torch.load(critic_path))
 
         # Load the optimizers as well
         if ar_optim_path is not None and self.policy_type == "Gaussian2":
             self.ar_optim.load_state_dict(torch.load(ar_optim_path))
-        if  base_optim_path is not None and self.policy_type == "Gaussian2":
+        if base_optim_path is not None and self.policy_type == "Gaussian2":
             self.base_optim.load_state_dict(torch.load(base_optim_path))
         if policy_optim_path is not None and self.policy_type == "Gaussian":
             self.policy_optim.load_state_dict(torch.load(policy_optim_path))

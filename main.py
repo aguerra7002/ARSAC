@@ -1,5 +1,6 @@
 # import this before torch
 from comet_ml import Experiment
+from comet_ml.api import API
 import os
 import argparse
 import numpy as np
@@ -15,7 +16,7 @@ parser = argparse.ArgumentParser(description='PyTorch AutoRegressiveFlows-RL Arg
 # Once we get Mujoco then we will use this one
 parser.add_argument('--env-name', default="walker",
                     help='Mujoco Gym environment (default: HalfCheetah-v2)')
-parser.add_argument('--task-name', default="walk",
+parser.add_argument('--task-name', default="run",
                     help='Task name to use in the Deepmind control suite. Leave Blank to use Gym environments')
 parser.add_argument('--policy', default="Gaussian2",
                     help='Policy Type: Gaussian | Gaussian2 (default: Gaussian)')
@@ -72,6 +73,12 @@ parser.add_argument('--pixel_based', type=bool, default=False, metavar='G',
                     help='Uses a pixel based state as opposed to position/velocity vectors. Do not use with use_prev_states=True')
 parser.add_argument('--resolution', type=int, default=64, metavar='G',
                     help='Decides the resolution of the pixel based image. Default is 64x64.')
+parser.add_argument('--transfer_expert', default=False,
+                    help='Decides whether or not we should try and use an expert AR prior to help train the policy.')
+parser.add_argument('--expert_id', default='f127078dbe9f43689d3faa2988633ec6', # Walker Run Expert
+                    help='experiment id of the expert to follow')
+parser.add_argument('--expert_eval_ep', type=int, default=300,
+                    help='decides which eval to transfer the expert from. (Must be a multiple of 5 and <= 300)')
 #######################################################
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
@@ -121,6 +128,33 @@ if PROFILING:
 
 # Agent
 agent = ARRL(state_space_size, env.action_space, args)
+# Expert
+expert = None
+if args.transfer_expert:
+    # Load the expert from Comet
+    comet_api = API(api_key='tHDbEydFQGW7F1MWmIKlEvrly')
+    base_experiment = comet_api.get_experiment(project_name='arsac',
+                                               workspace='aguerra',
+                                               experiment=args.expert_id)
+    asset_list = base_experiment.get_asset_list()
+    # Set up expert args
+    expert_args_asset_id = [x for x in asset_list if x['fileName'] == "args"][0]['assetId']
+    expert_args_dict = base_experiment.get_asset(expert_args_asset_id, return_type="json")
+    # It may be the case that the expert has a different state space dimension than the learner.
+    expert_state_space_size = env.get_state_space_size(position_only=expert_args_dict['position_only'])
+
+    actor_filename = 'actor.model' if args.expert_eval_ep == 300 else f'actor_eval_{args.expert_eval_ep}.model'
+    # Here is the transfer component. For now, we only transfer the actor.
+    actor_asset_id = [x for x in asset_list if actor_filename == x['fileName']][0]['assetId']
+    actor = base_experiment.get_asset(actor_asset_id)
+    act_path = 'tmploaded/actor.model'
+    with open(act_path, 'wb+') as f:
+        f.write(actor)
+    # In order to make ARSAC effective, the action space must be constant across the experts/learners.
+    expert = ARRL(expert_state_space_size, env.action_space, args)
+    # TODO: Load the critic as well? May be useful for some reason.
+    expert.load_model(act_path, None)
+    agent.set_transfer_loss(1.0) # TODO: Make this dynamically change over time.
 
 # Comet logging
 experiment = Experiment(api_key="tHDbEydFQGW7F1MWmIKlEvrly",
@@ -215,7 +249,7 @@ with experiment.train():
                     # Update parameters of all the networks (also update the restricted base output
                     critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = \
                         agent.update_parameters(memory, args.batch_size, updates,
-                                                restrict_base_output=rbo, step=total_numsteps)
+                                                restrict_base_output=rbo, step=total_numsteps, expert=expert)
 
                     critic_1_losses.append(critic_1_loss)
                     critic_2_losses.append(critic_2_loss)

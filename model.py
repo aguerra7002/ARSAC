@@ -474,7 +474,12 @@ class GaussianPolicy2(nn.Module):
         # log_scale = torch.clamp(log_scale, min=LOG_SIG_MIN, max=LOG_SIG_MAX) <- What we had before.
         return mean, log_std
 
-    def sample(self, state, prev_states, prev_actions, return_distribution=False, random_base=False, uniform_weight=0):
+    # Generate our prior and nothing more.
+    def generate_prior(self, prev_actions):
+        mean, log_std = self.forward_phi(prev_actions)
+        return Normal(mean.detach(), log_std.exp().detach())
+
+    def sample(self, state, prev_states, prev_actions, return_distribution=False, return_policy=False, random_base=False, uniform_weight=0):
         # Generate our prior
         if self.action_lookback == 0: # SAC with state-prior for baseline
             mean, log_std = self.forward_phi(state)
@@ -536,7 +541,7 @@ class GaussianPolicy2(nn.Module):
         log_prob_base -= torch.log(self.action_scale * (1 - tanh_action.pow(2)) + epsilon)
         log_prob_base = log_prob_base.sum(1, keepdim=True)
 
-        log_prob_prior -= torch.log(self.action_scale * (1 - tanh_action.detach().pow(2)) + epsilon) # !!!!!
+        log_prob_prior -= torch.log(self.action_scale * (1 - tanh_action.detach().pow(2)) + epsilon)
         log_prob_prior = log_prob_prior.sum(1, keepdim=True)
         # No need to worry about transforming the uniform dist since we are already in the bounded action space
         #log_prob_uniform = log_prob_uniform.sum(1, keepdim=True)
@@ -547,7 +552,9 @@ class GaussianPolicy2(nn.Module):
         # kl_div2 = log_prob_base - log_prob_prior
         if return_distribution:
             return action_ret, kl_div, mean_ret.detach(), mean, \
-                   log_std.exp(), sigma_mean.detach(), delta_log_std.exp().detach() #delta_mean.detach()
+                   log_std.exp(), (sigma_mean.detach(), sigma_std.detach()), (delta_mean.detach(), delta_log_std.exp().detach()) # delta_mean.detach()
+        elif return_policy:
+            return action_ret, kl_div, mean_ret.detach(), mean, log_std.exp(), base_dist
         else:
             return action_ret, kl_div, mean_ret.detach()
 

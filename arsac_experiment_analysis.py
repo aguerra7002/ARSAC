@@ -111,7 +111,7 @@ def run_eval_episode(exp_id, title, plot_agent=False, eval=True, actor_filename=
     else:
         prev_states = None
 
-    with imageio.get_writer('visual/' + title + '.gif', mode='I') as writer:
+    with imageio.get_writer(title + '.gif', mode='I') as writer:
 
         img = env.env.physics.render(camera_id=0, width=640, height=480)
         writer.append_data(img)
@@ -273,22 +273,22 @@ def plot_action(stds, means, shifts, scales, title, start_step=100, end_step=250
         plt.clf()
 
 
-def setup_directory(dir):
-    loc = os.path.join(save_dir, dir.replace(" ", "_"))
+def setup_directory(base_path, dir):
+    loc = os.path.join(base_path, dir.replace(" ", "_"))
     if not os.path.exists(loc):
         os.makedirs(loc)
-        action_corr_loc = os.path.join(loc, "action_corr")
-        os.makedirs(action_corr_loc)
-        os.makedirs(os.path.join(action_corr_loc, "jpgs"))
-        os.makedirs(os.path.join(action_corr_loc, "pdfs"))
-        action_loc = os.path.join(loc, "actions")
-        os.makedirs(action_loc)
-        os.makedirs(os.path.join(action_loc, "jpgs"))
-        os.makedirs(os.path.join(action_loc, "pdfs"))
-        visual_loc = os.path.join(loc, "visual")
-        os.makedirs(visual_loc)
-        os.makedirs(os.path.join(visual_loc, "jpgs"))
-        os.makedirs(os.path.join(visual_loc, "pdfs"))
+        # action_corr_loc = os.path.join(loc, "action_corr")
+        # os.makedirs(action_corr_loc)
+        # os.makedirs(os.path.join(action_corr_loc, "jpgs"))
+        # os.makedirs(os.path.join(action_corr_loc, "pdfs"))
+        # action_loc = os.path.join(loc, "actions")
+        # os.makedirs(action_loc)
+        # os.makedirs(os.path.join(action_loc, "jpgs"))
+        # os.makedirs(os.path.join(action_loc, "pdfs"))
+        # visual_loc = os.path.join(loc, "visual")
+        # os.makedirs(visual_loc)
+        # os.makedirs(os.path.join(visual_loc, "jpgs"))
+        # os.makedirs(os.path.join(visual_loc, "pdfs"))
     return loc
 
 # Base Tests with 2x256 HS AutoEntropy Tuning, BS 256
@@ -430,7 +430,7 @@ if __name__ == "__main__":
     for key in to_plot_dict_1x32:
         dir_name = key
         # Will create all the necessary directories and go into the proper directory for plotting
-        os.chdir(setup_directory(dir_name))
+        os.chdir(setup_directory(save_dir, dir_name))
         title = key
         arsac_exp_id = to_plot_dict_1x32[key]["ARSAC"][0]
         actions, means, stds, shifts, scales, rewards, log_probs = run_eval_episode(arsac_exp_id, title, actor_filename="actor.model", prior_only=False)

@@ -51,9 +51,9 @@ def make_g2_policy_visualization(eval_eps_dict, start_step=0, end_step=180, titl
             base_mean, ar_mean, mean, sigma_means, reward = eval_eps_dict[eval_ep]
 
             # Make the plots
-            axs[i, 0].plot(x_axis, np.tanh(base_mean[dim, 0: end_step]), label="SA action")
-            axs[i, 0].plot(x_axis, np.tanh(ar_mean[dim, 0: end_step]), label="AR action")
-            axs[i, 0].plot(x_axis, np.tanh(mean[dim, 0:end_step]), '.', color='black', label="final action")
+            axs[i, 0].plot(x_axis, base_mean[dim, 0: end_step], label="SA action")
+            axs[i, 0].plot(x_axis, ar_mean[dim, 0: end_step], label="AR action")
+            axs[i, 0].plot(x_axis, mean[dim, 0:end_step], '.', color='black', label="final action")
 
             axs[i, 1].plot(x_axis, sigma_means[dim, 0:end_step], label="gate")
             axs[i, 1].set_ylim(-0.05, 1.05) # Make between 0 and 1
@@ -78,21 +78,28 @@ def make_g2_policy_visualization(eval_eps_dict, start_step=0, end_step=180, titl
 
 # G2 2x256 Auto-entropy tuning with restricted policy deviation
 exp_dict = {
-    "Walker_Walk_2x256_Policy_Visualization": "790ec3d690d241c887004ba0523f3a22",
-    "Walker_Run_2x256_Policy_Visualization": "1e8ee2b7e110481f8bd954417b64fb49",
-    "Cheetah_Run2x256_Policy_Visualization": "481d7340b126484c9f771a5e4f27c635"
+    # "Walker_Walk_2x256_Policy_Visualization": "790ec3d690d241c887004ba0523f3a22",
+    "Walker_Run_2x256_Policy_Visualization": ["c03f3a61a56a4dfb921ebf50d40f8c2a", [5, 100, 300]],
+    "Cheetah_Run_2x256_Policy_Visualization": ["d2ac329944914291a1b9f8482db3a3c6", [5, 100, 300]],
+    "Swimmer_Swimmer6_2x256_Policy_Visualization": ["0c30264278bb4d8192f0acf09861b5fa", [5, 100, 300]],
+    "Hopper_Hop_2x256_Policy_Visualization": ["b72aa975f17948b59f731e8c4a72d754", [5, 100, 300]],
+    "Quadruped_Walk_2x256_Policy_Visualization": ["9d199eec306042d59275ab2302f85c24", [5, 100, 300]],
+    "Quadruped_Run_2x256_Policy_Visualization": ["22c9efb1e0f94687ae330c3fcee88c8e", [5, 100, 300]],
+    "Humanoid_Walk_2x256_Policy_Visualization": ["f5ce4b114526476a88e392a2ab3fd07e", [5, 100, 300]],
+    "Humanoid_Run_2x256_Policy_Visualization": ["bb9f75728478498ea68be3a0fc8e5f84", [5, 100, 300]]
 }
 
 
 if __name__ == "__main__":
 
     for title in exp_dict.keys():
-        arsac_exp_id = exp_dict[title]
+        entry = exp_dict[title]
+        arsac_exp_id = entry[0]
 
-        eval_eps_list = [65]#[5, 20, 50]
+        eval_eps_list = entry[1]
         # Need to build up the eval_eps_dict
         eval_eps_dict = {}
-        os.chdir(setup_directory("g2_visualizations"))
+        os.chdir(setup_directory("g2_policy_visualizations", title))
 
         for eval_ep in eval_eps_list:
             if eval_ep == 300:
@@ -101,7 +108,8 @@ if __name__ == "__main__":
             else:
                 actor_filename = "actor_eval_" + str(eval_ep) + ".model"
 
-            _, ar_means, _, base_means, sigma_mean, rewards, _ = run_eval_episode(arsac_exp_id, title, actor_filename=actor_filename, prior_only=True, num_steps=1000)
+            _, ar_means, _, base_means, sigma_mean, rewards, _ = run_eval_episode(arsac_exp_id, title + "_" + str(eval_ep), actor_filename=actor_filename, prior_only=False, num_steps=1000)
+
             # Compute the pre-tanh means using the gate
             means = ar_means * sigma_mean + base_means * (1 - sigma_mean)
             reward = rewards.sum()
@@ -109,7 +117,7 @@ if __name__ == "__main__":
             eval_eps_dict[eval_ep] = (base_means, ar_means, means, sigma_mean, reward)
         os.chdir("../../")
 
-        #make_g2_policy_visualization(eval_eps_dict, title=title)
+        make_g2_policy_visualization(eval_eps_dict, title=title)
 
 
 

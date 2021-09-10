@@ -645,141 +645,214 @@ walker_walk_g2 = {
 }
 
 # Walker walk tests, now with the g2 policy formulation, and a hidden dimension of 2x256
-walker_walk_g2_2x256 = {
-    "SAC": ['2ea19479726d44dfa8cd06d94f620178',
-            '0f1c2f68e5124ff282283fd6a28961f6',
-            '155446f560724c07837e42841527d9d0',
-            '1b4f31622c884af2adac83fc4df5b6f6',
-            'f11b9050bd1c4ffe93cd049d05dd7820'],
-    "G1 ARSAC": ['113982d9ab8b4faf849ef5a2efb712f5',
-                 '0db2b5f019f3424eb0c17a34265932e3',
-                 '72775f63da174d9889c956d34f8335b1',
-                 '279206ac947343439547f827a55ca309',
-                 '47637c6e9ca646dd8fe6c4eb974ab7c9'],
-    # These are the new experiments
-    # "SAC prior": ["f3a366686715481894fad12e096c2bf2"],
-    "G2 ARSAC": ["66b15720c86f49a7ba235fe95afba25e",
-                 "4fa84897781449af97c021a5bcebd048",
-                 "305380143f924f5ab4bff4f15538fdb2",
-                 "3fa6bb7b36844cf88e67e83d2e823e8d",
-                 "a9931ceebbab4cfba541cc90aa39fbff"]
-}
+# walker_walk_g2_2x256 = {
+#     "SAC": ['2ea19479726d44dfa8cd06d94f620178',
+#             '0f1c2f68e5124ff282283fd6a28961f6',
+#             '155446f560724c07837e42841527d9d0',
+#             '1b4f31622c884af2adac83fc4df5b6f6',
+#             'f11b9050bd1c4ffe93cd049d05dd7820'],
+#     "G1 ARSAC": ['113982d9ab8b4faf849ef5a2efb712f5',
+#                  '0db2b5f019f3424eb0c17a34265932e3',
+#                  '72775f63da174d9889c956d34f8335b1',
+#                  '279206ac947343439547f827a55ca309',
+#                  '47637c6e9ca646dd8fe6c4eb974ab7c9'],
+#     # These are the new experiments
+#     # "SAC prior": ["f3a366686715481894fad12e096c2bf2"],
+#     "G2 ARSAC": ["66b15720c86f49a7ba235fe95afba25e",
+#                  "4fa84897781449af97c021a5bcebd048",
+#                  "305380143f924f5ab4bff4f15538fdb2",
+#                  "3fa6bb7b36844cf88e67e83d2e823e8d",
+#                  "a9931ceebbab4cfba541cc90aa39fbff"]
+# }
+
+
 
 walker_run_g2_2x256 = {
-    "SAC": ['707acf6bfd714c6582e737db0191743f',
+    "G1 SAC": ['707acf6bfd714c6582e737db0191743f',
             '1cd7e219a5fb46409eab5ca2bd476420',
             '76eb27add9a04d4c8867379ea0d20984',
             'dd362b0740db449b8a156c9edf4e2b49',
             'ba7f1b039bc84c99b228924d6f2e4bc2'],
-    "ARSAC": ['cd2b9f003e404a8daff56dea22e0bcb3',
+    "G1 ARSAC": ['cd2b9f003e404a8daff56dea22e0bcb3',
               'a70d6e85bebb48afa5ab7cd90a462f84',
               'a6bffea54b32423da7f4a2d2ffc6b0b8',
               'b549680b06e74dd884bb5dc352e8ed97',
               '73cdbd54d8914d3bbefd4597e0eb89d5'],
-    "G2 ARSAC": ["96db136a0da5418c8be028ab208c92f2",
-                 "4c707c3e253645feafcd2e862c398367",
-                 "082248f8d64a41efa916ca082ad06cbf",
-                 "0413211ea30c464caa8275fee0ddd14c",
-                 "9c77bd14ef8849b691d07c874f30d6ed"]
+    "G2 SAC": ["a78ca67e6c8d463ab2a627f40862c88f",
+               "99e132054b534d79b9b0fa5b0c71e9d6",
+               "d45bd3a16aaa43fe98227075201c7f9f",
+               "5b4dbdbae9f64426a31fe14fe4680cc4",
+               "4bbd6a00fedb4a36811dbc13fab9a1f1"],
+    "G2 ARSAC": ["f127078dbe9f43689d3faa2988633ec6",
+                 "2514565b02954cf3a3e02debde9d57d5",
+                 "aa31b561dabf4e2ebb7692106524e9c4",
+                 "c03f3a61a56a4dfb921ebf50d40f8c2a",
+                 "17d95404da374f23aa8c6460bb9f06ea"]
 }
 
 cheetah_run_g2_2x256 = {
-    "SAC": ['d4f8852ef3724b1b922a470f1faecc8e',
+    "G1 SAC": ['d4f8852ef3724b1b922a470f1faecc8e',
             '472c1e81b25c4578a5ccadc45f93255f',
             'fb194bd6fdd54d06bfa588118cd1451f',
             '9168d02d34c34b13bef04eecfbcc2bcf',
             '77350e72c5a047b5a45b18e77da2653a'],
-    "ARSAC": ['d249049426d04c44bbeb1a817e20369c',
-              '978bfd18862d4bddb55748312fe82d5c',
-              '88735d788b2f43c397bc90cc9d141a9e',
-              '6440820fe6c44b93b17cf2ea3cfb0b44',
-              '45c8f087f682459593b8286f366effb0'],
-    "G2 ARSAC": ["",
-                 "7ec9df251f1c4044b68088bf119c089f",
-                 "",
-                 "3325c23992e548be8eb30d05cf8dfad4",
-                 "ad4e788ffb9b4b9baee240cf74879146"]
+    "G1 ARSAC": ['d249049426d04c44bbeb1a817e20369c',
+                 '978bfd18862d4bddb55748312fe82d5c',
+                 '88735d788b2f43c397bc90cc9d141a9e',
+                 '6440820fe6c44b93b17cf2ea3cfb0b44',
+                 '45c8f087f682459593b8286f366effb0'],
+    "G2 SAC": ["b6e4a3ca29a647468c4f5c0f2c0c6edb",
+                 "2d2104e1f47d4096b9675201fd734e84",
+                 "da51c61cf531468da8c01ee7c44ced9c",
+                 "b5de647e48c84d258c47fe78b9feecbe",
+                 "de0e736688cd4d259bfbe7705e14620c"],
+    "G2 ARSAC": ["9e1ba2559bbd453f829994a77b56d653",
+                 "b94172abd3d54011a8245f8475a45837",
+                 "dc7475a3db7f4aaa9eddf1585e750103",
+                 "d2ac329944914291a1b9f8482db3a3c6",
+                 "48c73f194a8f4730bdd1b10e4c9af51d"]
+}
+
+hopper_hop_g2_2x256 = {
+    "G1 SAC": ['3945a372be2645c7a6b8efe2951cc3d1',
+               '62109befb53c4f658a7f21a28017c7e1',
+               '3e43964bcab54d5fb88f815f29cfb305',
+               '8c85abb6e4d84841b9f7fcc52bc9b2cb',
+               '528ec1181aa643a6a454e7eae55a435f'],
+    "G1 ARSAC": ['f34a21792fd049af98794b666cf292ff',
+                 '789d8441dc6248e280a7026326754832',
+                 '137012c98cb7417c983c93d214ef1fbf',
+                 'e0300ac61e1345a8a3e13cb5c0876035',
+                 '50e034bba4894b739489478fe3a75ed5'],
+    "G2 SAC": ["cf83e59a16ea45b18944fb6c8fc3414c",
+               "251c7e9a998047d1b6df6750269b20e3",
+               "251c7e9a998047d1b6df6750269b20e3",
+               "2413b88a9d1e4d72912fb3a56a288451",
+               "90afcc02c32644b5a3b8b1569ffae86f"],
+    "G2 ARSAC": ["9bc77d1282a94583acf3f05c9d153f8f1",
+                 "2b0c70807c4d4f9da05faf8989e48e5d",
+                 "a70af28e05dd4fa98c35f8373799e88a",
+                 "b72aa975f17948b59f731e8c4a72d754", # Good one
+                 "62d02c00e8484a93abe06931523b08f2"]
 }
 
 humanoid_walk_g2_2x256 = {
-    "SAC": ['d2014eeb19034c1b89187ba315ed6851',
+    "G1 SAC": ['d2014eeb19034c1b89187ba315ed6851',
             '1a33932b508240a1ae11289bcefba9f0',
             '834dc29681b74705bfc7328321f8d33c',
             '6dcc45fb34694a43a77d261c220359b3',
             'b278744d70c44d238369aa1c8591658e'],
-    "ARSAC-5": ['77b0e57f24ce419baec3414030ca9b29',
+    "G1 ARSAC": ['77b0e57f24ce419baec3414030ca9b29',
                 '8209c120f6074a9bb23ddd11b475726f',
                 '3dc93883ee494821bbf0a32487e49df6',
                 '77b0e57f24ce419baec3414030ca9b29',
                 '21a9cc1dba8543d0b147c5dd11d9cc37'],
-    "G2 ARSAC": ["3e1b45e1568143e5a3c6af14a466ebc0",
-                 "5608c59dfb8e41ea8cdb77d22b7ca0f6",
-                 "a50afe1b87564931a70092b9d2b0ef4b",
-                 "68eb2e3958bc4c828ddd22940644cc4e",
-                 "d7a067ffbb534edc983ec4807f580828"]
+    "G2 SAC": ["16a95abbcc8f43f6868760c29ef279d4",
+               "d0b4c313f51149f19e81ce77eaa66ba1",
+               "243c9ead501b461b8323b38a8c005ff9",
+               "c3c0aae0191544a18eb3a8ff54b9bb0d",
+               "37bb8ac1b8044a7c95add8ae832071a1"],
+    "G2 ARSAC": ["f5ce4b114526476a88e392a2ab3fd07e",
+                 "078697584b4a4b25a29052e72d01307d",
+                 "d78c13edec37448a86cebbc798d68f4f",
+                 "12a019e444ad404784cf668c42950417",
+                 "52b2939eeae44a04ace3314cd1ea285e"]
 }
 
-humanoid_run_g2_2x256 ={
-    "SAC": ['d4f897346e714022bb2e7cc3e1b795b7',
+humanoid_run_g2_2x256 = {
+    "G1 SAC": ['d4f897346e714022bb2e7cc3e1b795b7',
             'd4d0f5333ec84290bdc3342885be90f6',
             '4ccab64dd972429892e79b2b80ef9ae1',
             '534810614ac54afc9d3c65c2f42b5f79',
             '4f5781e5784e402c9176eea4ee0e20ef'],
-    "ARSAC-5": ['0b22c9785f0440ec9166b99e6aa0ede4',
+    "G1 ARSAC": ['0b22c9785f0440ec9166b99e6aa0ede4',
                 '51a0de4aaec04d2aa2f5e84eaf89374b',
                 '0f02afcac7a14116a57e17fbe86f41e3',
                 '004f7b3ab7c74188a3950ad5526c3a4b',
                 '51a0de4aaec04d2aa2f5e84eaf89374b'],
-    "G2 ARSAC": ["dcd1720d723c437b8e7d696d0c3294d8",
-                 "2ec24c1d22b14b9eb4cd3864e326ed3b",
-                 "8baaeddb5f204d96910f863c3e7d58e5",
-                 "949d6c435f524a1bb9249a9741fd8f0a",
-                 "dc13f9dfad714ced8114b2a94461da39"]
+    "G2 SAC": ["244c4574525d4bd19ff089405e29c882",
+               "bedb9224fd1246ec9769d0c9e1e18c49",
+               "4e0b940ac5754270b81295229617790f",
+               "f0e6110bcb884831a55b089f88cca13a",
+               "c944ffb209fe40b8ae365e9c7c09c4a1"],
+    "G2 ARSAC": ["bb9f75728478498ea68be3a0fc8e5f84",
+                 "ce942982a4ea43b7b442841bab1cf214",
+                 "a4f3a0f15d6440649b25fdafb514198b",
+                 "8b54d78426b14923936d72c62a5a7191",
+                 "913a2d6d25be4b62b0e6aba87b84e53d"]
 }
 
-humanoid_run_g2_2x256_kls = {
-    "0.001": ["dcd1720d723c437b8e7d696d0c3294d8",
-              "2ec24c1d22b14b9eb4cd3864e326ed3b",
-              "8baaeddb5f204d96910f863c3e7d58e5",
-              "949d6c435f524a1bb9249a9741fd8f0a",
-              "dc13f9dfad714ced8114b2a94461da39"],
-    "0.0001": ["57d3fb4fc2094e8da08969978923cb02",
-               "504c6cc33bc64ea393540c07365a5f34",
-               "a1148cddbdd946079e393964406dba7c",
-               "be80ca3f0f2245b68a7bb6b4d965cb17",
-               "d35ad8b7a09a4239af692e70c649b625"],
-    "0.0": ["ebc7bc7659dc40b4983b3685ea96fe33",
-            "e2ce45f5267d4d5b9a0b0ac4872d8539",
-            "8847f818f36d48d1887293df80ac6475",
-            "4dc170c7ab7c438eb5d4581a3139ddc7",
-            "a64c77bdfac84c61b831303693e66fba"]
+
+quadruped_walk_g2_2x256 = {
+    "G1 SAC": ['63f05e87479d48869c2f0aac465700ec',
+               '38e240215f2c408aad8e29f9e2889a44',
+               '7a51337b3690473283028d027d047aa7',
+               'bde9ef35ca214c27abeb7c5ee332d82d',
+               '1fd9cb29169340dd9f8295fe86cea399'],
+    "G1 ARSAC": ['a8f7092ff8de48cc97b7e8dd2e18849a',
+                 '4e96ec38641a4ed59e31050e69811888',
+                 '04a9f3dacea34812aba6fcfaa24efe70',
+                 '024073a18174487195b1776bad8fe75f',
+                 'e56565f75b0b4ee291d10a44362df8cd'],
+    "G2 SAC": ["3b4c65325dfc4927a167052fef449efa",
+               "f16db5270e2f435da8e64108e3c7e429",
+               "6f8e36a8b25e43718b950b9a93aded2b",
+               "3902a5d9b54740f0881a4b0dc77d510c",
+               "8bed27f6636448e9967b48020ebfe5f3"],
+    "G2 ARSAC": ["51918395135244b987072b61dd57f0c8",
+                 "9d199eec306042d59275ab2302f85c24",
+                 "5cd1bb2b08344734b2bcc22c9165f79c",
+                 "7392b93733d04f13aa86b5f6cbf68de6",
+                 "59652fc0dedf4088a467dbe9b9452fdc"]
 }
 
-quadruped_walk_g2_2x256_kls = {
-    "0.0001": ["5d0d71a4214546e9bd4124ccac5fa7b4",
-               "f6d384d9865948f2aaf5d7203e4c1246",
-               "16b4190053c94ec2a6ffb7a32f95f768",
-               "8ab94a6f202e497084eac4b5d6117922",
-               "af3681f7d91a4922b2f1b1d997325363"],
-    "0.0": ["f7e6133d8a5e4fbd864378077cf39013",
-            "3030f39349784a7abfb481d24be3402f",
-            "068cbb28fa5d4499a6793bffb648152a",
-            "1a13eb16801b407985999e6a6990b0ca",
-            "11333cd3db0c476885a34bd4c6c85baa"]
+quadruped_run_g2_2x256 = {
+    "G1 SAC": ['a3116a2d342049258b3b4c078b0900a9',
+            '8c36041ad20144c0bed4372e5bee7830',
+            '638e1f47b4554c3abcb99e8bd7eb1c7c',
+            'e9f62562f0f3404e8e6adc0a87795c41',
+            '8679973fbc8a4147980d1e208ffc99f0'],
+    "G1 ARSAC": ['739af68727ff409eaf20e7cca5e9c233',
+              'a5af0b02e7a247b391f6069cfeab9dbb',
+              '025da2ce2e7e4768a36cba0011ea05f0',
+              '3e9c9ecf75d94e2fbea7239e534395b9',
+              'be93ba6eb8414f2f9d6969e7f8dd960b'],
+    "G2 SAC": ["e9b3552bb2c3405e97cea503202fe51f",
+               "55fcfd0a4b9c42f3ace3d48ca25e6306",
+               "adba26d3f06249ab800b86961f90c7ee",
+               "33129cda8c1d4132a57ac79eebcb5b3d",
+               "da482f90cf7147fab042b7230533ad1a"],
+    "G2 ARSAC": ["d530611057a748b2967479e2fe212b1d",
+                 "22c9efb1e0f94687ae330c3fcee88c8e",
+                 "e7f9b5e05a154e41becc6fe546f2102c",
+                 "2e2abe5566324152bddf7c49abdca661",
+                 "bfcbee6c6ffa4989b2073373362e0c16"]
 }
 
-quadruped_run_g2_2x256_kls = {
-    "0.0001": ["8feb2cc42a1c479087cb708b2a9a94e4",
-               "dfe6b119e2a148ed8bbd2bb008f896a0",
-               "e326f74f9bc54c86b8c16cadb76029b6",
-               "92f4910250c3449ca0bd85b4fb515b6c",
-               "65e83f710e9848e6bec3dfa9962d038a"],
-    "0.0": ["bd1381c667ee442aac4590750b9aabe2",
-            "d78512916e264dadbf71d38134b235b0",
-            "b7ac30c82b4248f1b33ff27568488ca9",
-            "ad0ec064cd3742929f9244a72c5c84dc",
-            "d6a705b25f114e98a21136f2f401e0dc"]
+swimmer_swimmer6_g2_2x256 = {
+    "G1 SAC": ['9261019f9dae4b2e905083be0f58ef7c',
+               'f3577a6c31a147dfbfec6f85b93c7e76',
+               '13ea38a54d2a45da8e260b8dfbfd05b7',
+               '1ac80220920d4ed0930c00cc9a2500eb',
+               '28a6559428ab49a381e5e9e11759c878'],
+    "G1 ARSAC": ['6cd4bf639905460e8f23e3e9f42bd963',
+                '96224b8d827c47dbb132dd8591223a4c',
+                '74533d179112481995b49f1cbbfcad87',
+                '61d70de25e674332aedbcc30308aedd7',
+                '93f54dab1c584633bc4d7a530dcc357e'],
+    "G2 SAC": ["0f54f948b1b94867815cc24a20886364",
+               "14f737bf7c9c4837ba0c676e7b74d943",
+               "8eecf14754ae4bb79921693178cd4368",
+               "c3bc89ada6e74012807200a4d0a21ffc",
+               "0244b4cc0ee44b92bba4721bf7d8fe8c"],
+    "G2 ARSAC": ["b2e41d7cc2fb43db811ae86b9f0a6df0",
+                 "5b92cc34ab6b4ee085356e24d2c4434c",
+                 "33cbe685437c4819b39aa4e1752180ab",
+                 "a4dd07b90f9a451983d819fba5e3d230",
+                 "0c30264278bb4d8192f0acf09861b5fa"]
 }
+
+
 
 to_plot_transfer_dict2 = {
     "Walker Run Transfer AutoEnt 2x256HS": walker_transfer_dict2,
@@ -844,11 +917,15 @@ to_plot_dict5 = {
 }
 
 to_plot_g2_2x256 = {
-    "Walker Walk SAC vs. G1 vs. G2 2x256 HS" : walker_walk_g2_2x256,
-    # "Walker Run SAC vs. G1 vs. G2 2x256 HS": walker_run_g2_2x256,
-    # "Cheetah Run SAC vs. G1 vs. G2 2x256 HS": cheetah_run_g2_2x256,
-    # "Humanoid Walk SAC vs. G1 vs. G2 2x256 HS": humanoid_walk_g2_2x256
-    # "Humanoid Run SAC vs. G1 vs. G2 2x256 HS": humanoid_run_g2_2x256
+    # "Walker Walk SAC vs. G1 vs. G2 2x256 HS" : walker_walk_g2_2x256,
+    "Walker Run SAC vs. G1 vs. G2 2x256 HS": walker_run_g2_2x256,
+    "Cheetah Run SAC vs. G1 vs. G2 2x256 HS": cheetah_run_g2_2x256,
+    "Hopper Hop SAC vs. G1 vs. G2 2x256 HS": hopper_hop_g2_2x256,
+    "Swimmer Swim SAC vs. G1 vs. G2 2x256 HS": swimmer_swimmer6_g2_2x256,
+    # "Humanoid Walk Rewards 2x256 HS": humanoid_walk_g2_2x256,
+    # "Humanoid Run Rewards 2x256 HS": humanoid_run_g2_2x256,
+    # "Quadruped Walk Rewards 2x256 HS": quadruped_walk_g2_2x256,
+    # "Quadruped Run Rewards 2x256 HS": quadruped_run_g2_2x256
 }
 
 if __name__ == "__main__":
