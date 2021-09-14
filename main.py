@@ -270,7 +270,7 @@ with experiment.train():
                 prev_time = time.time()
 
             # Add state noise if that parameter is true
-            #next_state += np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0
+            next_state += np.random.normal(0, 0.1, state_space_size) if args.add_state_noise else 0
             episode_steps += 1
             total_numsteps += 1
             episode_reward += reward
